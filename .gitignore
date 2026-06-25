@@ -1,7 +1,6 @@
 TableA2-ACSjoin/tablea2.csv
 # * = any filename; ** = any directory depth
 **/__pycache__/
-**/.DS_Store
 **/tablea2.csv
 **/tablea2_cleaned.csv
 **/malformed_rows.csv
@@ -13,17 +12,16 @@ TableA2-ACSjoin/tablea2.csv
 *.md
 !docs/PAGES_SETUP.md
 !docs/index.html
+!docs/chart_labels.json
 *.log
 
-# GitHub Pages census bundle (processed NHGIS/CPI caches)
+# GitHub Pages census cache bundle
 !docs/data/census/
 !docs/data/census/*.json
 
-# Private OMNI master rule (local only, not on GitHub)
-.cursor/rules/omni-rule.mdc
-
-# Multi-root workspace (local folder layout)
-*.code-workspace
+# TIGER boundaries downloaded locally (CI uses TableA2-models/maps/boundaries)
+docs/data/boundaries/
+TableA2-models/maps/boundaries/
 
 # Census county FIPS reference (auto-downloaded by acs_apr_models.py if absent)
 **/national_county2020.txt
