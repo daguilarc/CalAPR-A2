@@ -1,230 +1,189 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>California APR Explorer</title>
-  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>California Multifamily Housing APR Explorer</title>
+  <script src="data/releases/2018-2024/plotly.min.js"></script>
   <style>
-    :root { font-family: system-ui, sans-serif; color: #1a1a1a; }
-    body { margin: 0; padding: 1rem 1.25rem 2rem; max-width: 1200px; margin-inline: auto; }
-    h1 { font-size: 1.35rem; margin-bottom: 0.25rem; }
-    .sub { color: #555; font-size: 0.9rem; margin-bottom: 1rem; }
-    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-    .tabs button { padding: 0.45rem 0.9rem; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; border-radius: 4px; }
-    .tabs button.active { background: #333; color: #fff; border-color: #333; }
-    .panel { display: none; }
-    .panel.active { display: block; }
-    .controls { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
-    label { display: flex; flex-direction: column; font-size: 0.8rem; gap: 0.25rem; }
-    select { padding: 0.35rem; font-size: 0.9rem; }
-    #map-chart, #model-chart { min-height: 560px; border: 1px solid #ddd; border-radius: 6px; }
-    #stats, #re-note { font-size: 0.85rem; margin-top: 0.75rem; }
-    #status { color: #666; font-size: 0.85rem; }
-    footer { margin-top: 2rem; font-size: 0.8rem; color: #555; border-top: 1px solid #eee; padding-top: 1rem; }
-    a { color: #0645ad; }
-    .warn { background: #fff8e6; border: 1px solid #f0d080; padding: 0.5rem 0.75rem; border-radius: 4px; font-size: 0.85rem; margin-bottom: 0.75rem; }
+    :root{font-family:system-ui,sans-serif;color:#202124}body{max-width:1200px;margin:auto;padding:1rem 1.25rem 2rem}
+    h1{margin-bottom:.2rem}.vintage{font-weight:650;margin:.1rem 0 1rem}
+    .tab-row{display:flex;align-items:flex-end;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+    .tabs{display:flex;gap:.5rem}.tabs button{padding:.45rem}.tabs button.active{background:#333;color:#fff}
+    button,select{padding:.45rem}.panel{display:none}.panel.active{display:block}
+    .controls{display:grid;gap:.75rem;margin-bottom:1rem}
+    .model-grid{grid-template-columns:repeat(2,minmax(220px,1fr))}
+    label{display:flex;flex-direction:column;gap:.25rem;font-size:.85rem}
+    .robustness-below{margin:1rem 0;max-width:320px}
+    #map-chart,#model-chart{min-height:560px;border:1px solid #ddd}
+    #model-chart.is-empty{min-height:0;height:auto;border:none}
+    table{border-collapse:collapse}th,td{border:1px solid #ddd;padding:.35rem .5rem}footer{border-top:1px solid #ddd;margin-top:2rem;padding-top:1rem;font-size:.85rem}
   </style>
 </head>
 <body>
-  <h1>California Housing APR Explorer</h1>
-  <p class="sub">Pre-computed maps and two-part regressions from HCD Table A2 + ACS/Zillow predictors.</p>
-  <p id="status">Loading data…</p>
-
-  <div class="tabs">
-    <button type="button" id="tab-maps" class="active">Maps</button>
-    <button type="button" id="tab-models">Models</button>
-  </div>
-
-  <div id="panel-maps" class="panel active">
-    <div class="controls">
-      <label>Map metric
-        <select id="map-metric"></select>
-      </label>
+  <h1>California Multifamily Housing APR Explorer</h1>
+  <p class="vintage">HCD APR data: 2018–2024, projects with 5+ dwelling units</p>
+  <p id="status">Loading archived release…</p>
+  <div class="tab-row">
+    <div class="tabs">
+      <button id="tab-maps" class="active" type="button">Maps</button>
+      <button id="tab-models" type="button">Models</button>
     </div>
-    <div id="map-chart"></div>
   </div>
-
-  <div id="panel-models" class="panel">
-    <div class="warn">Hierarchical Bayes results are pre-computed at site build time (can take 30–60+ minutes in CI). Standard OLS shows the MLE two-part line only.</div>
-    <div class="controls">
-      <label>Geography <select id="geo"></select></label>
-      <label>Outcome (Y) <select id="dr-type"></select></label>
-      <label>Phase <select id="cat-suffix"><option value="CO">CO</option></select></label>
-      <label>Predictor (X) <select id="x-col"></select></label>
-      <label>Robustness <select id="robustness">
-        <option value="none">None</option>
-        <option value="xsf">excl. XSF</option>
-        <option value="randhash">randhash −20%</option>
-        <option value="xsf_randhash">XSF + randhash</option>
+  <section id="panel-maps" class="panel active">
+    <div class="controls model-grid">
+      <label>Geography view<select id="map-geography">
+        <option value="incorporated_cities">Incorporated cities</option>
+        <option value="whole_counties">Whole counties</option>
+        <option value="cities_plus_unincorporated" selected>Cities + unincorporated county</option>
       </select></label>
-      <label>Model type <select id="fit-mode">
-        <option value="ols">Standard OLS (MLE two-part)</option>
-        <option value="hierarchical">Hierarchical Bayes</option>
-      </select></label>
+      <label>Map metric <span id="map-unit-hint"></span><select id="map-metric"></select></label>
     </div>
-    <div id="re-note"></div>
-    <div id="model-chart"></div>
-    <div id="stats"></div>
-  </div>
-
+    <p id="map-subheader"></p><div id="map-chart"></div>
+  </section>
+  <section id="panel-models" class="panel">
+    <div class="controls model-grid">
+      <label>Geography<select id="geo"></select></label>
+      <label>Variable (X)<select id="x-col"></select></label>
+      <label>Variable (Y)<select id="y-col"></select></label>
+      <label>Model display<select id="model-display"></select></label>
+      <label>Zero Values<select id="zero-values"><option value="two_part_hurdle" selected>Two-Part Hurdle</option><option value="positive_only">Positive Only</option></select></label>
+    </div>
+    <div id="model-chart" class="is-empty"></div>
+    <label class="robustness-below">Robustness Checks<select id="robustness"></select></label>
+    <div id="stats"></div><div id="coef-table"></div>
+  </section>
   <footer>
-    <p>Source data: <a id="src-link" href="https://data.ca.gov/dataset/81b0841f-2802-403e-b48e-2ef4b751f77c" target="_blank" rel="noopener">HCD APR Table A2 on data.ca.gov</a>
-    · <a href="https://data.ca.gov/dataset/81b0841f-2802-403e-b48e-2ef4b751f77c/resource/fe505d9b-8c36-42ba-ba30-08bc4f34e022/download/tablea2.csv" target="_blank" rel="noopener">tablea2.csv</a></p>
+    <p><strong>HCD data:</strong> <a href="https://data.ca.gov/dataset/housing-element-annual-progress-report-apr-data-by-jurisdiction-and-year" target="_blank" rel="noopener">Housing Element Annual Progress Reports</a>, 2018–2024.</p>
+    <p><strong>Census data:</strong> 2020–2024 American Community Survey (ACS) 5-Year Estimates. Population and real median-household-income change metrics compare the 2014–2018 and 2020–2024 ACS 5-Year Estimates. <a href="https://www.census.gov/programs-surveys/acs/methodology.html" target="_blank" rel="noopener">ACS methodology</a>.</p>
+    <p><strong>Zillow data:</strong> Monthly series, January 2018–December 2024; analysis expressed in real 2024 dollars. <a href="https://www.zillow.com/research/data/" target="_blank" rel="noopener">Zillow Research data and methodology</a>.</p>
+    <ul>
+      <li>Zillow Home Value Index (ZHVI): All Homes (Single-Family, Condo/Co-op), Middle Tier, Smoothed and Seasonally Adjusted.</li>
+      <li>Zillow Home Value Index (ZHVI): Condo/Co-op, Middle Tier, Smoothed and Seasonally Adjusted.</li>
+      <li>Zillow Observed Rent Index (ZORI): All Homes Plus Multifamily, Smoothed and Seasonally Adjusted.</li>
+      <li>Geographic series used: City and ZIP Code.</li>
+    </ul>
     <p id="build-info"></p>
   </footer>
-
   <script>
-    const MF_DR = new Set(["TOTAL_MF", "mf_owner"]);
-    let catalog = {};
-    let mapMetrics = [];
-    let geojson = null;
-
-    function setTab(name) {
-      document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-      document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
-      document.getElementById("panel-" + name).classList.add("active");
-      document.getElementById("tab-" + name).classList.add("active");
-    }
-    document.getElementById("tab-maps").onclick = () => setTab("maps");
-    document.getElementById("tab-models").onclick = () => setTab("models");
-
-    function catalogKey() {
-      const g = document.getElementById("geo").value;
-      const d = document.getElementById("dr-type").value;
-      const c = document.getElementById("cat-suffix").value;
-      const x = document.getElementById("x-col").value;
-      const r = document.getElementById("robustness").value;
-      const f = document.getElementById("fit-mode").value;
-      return `${g}:${d}:${c}:${x}:${r}:${f}`;
-    }
-
-    function parseCatalogOptions() {
-      const geos = new Set(), drs = new Set(), xs = new Set();
-      Object.keys(catalog).forEach(k => {
-        const [g, d, c, x, r, f] = k.split(":");
-        geos.add(g); drs.add(d); xs.add(x);
-      });
-      const fill = (id, values) => {
-        const el = document.getElementById(id);
-        el.innerHTML = "";
-        [...values].sort().forEach(v => {
-          const o = document.createElement("option");
-          o.value = v; o.textContent = v;
-          el.appendChild(o);
-        });
-      };
-      fill("geo", geos);
-      fill("dr-type", drs);
-      fill("x-col", xs);
-    }
-
-    function updateRobustnessState() {
-      const dr = document.getElementById("dr-type").value;
-      const rob = document.getElementById("robustness");
-      const enabled = MF_DR.has(dr);
-      rob.disabled = !enabled;
-      if (!enabled) rob.value = "none";
-    }
-
-    function renderMap() {
-      if (!geojson) return;
-      const spec = mapMetrics.find(m => m.key === document.getElementById("map-metric").value);
-      if (!spec) return;
-      const col = spec.metric_col;
-      const z = geojson.features.map((f, i) => f.properties[col]);
-      const locations = geojson.features.map((f, i) => f.properties.feature_id || String(i));
-      const diverging = spec.cmap_kind === "div";
-      const trace = {
-        type: "choroplethmapbox",
-        geojson: geojson,
-        locations: locations,
-        z: z,
-        featureidkey: "properties.feature_id",
-        colorscale: diverging ? "RdYlGn" : "PuRd",
-        marker: { opacity: 0.75 },
-        colorbar: { title: spec.title },
-        hovertext: geojson.features.map(f =>
-          `${f.properties.city_name || f.properties.county_name || ""}<br>${col}: ${f.properties[col] ?? "N/A"}`
-        ),
-        hoverinfo: "text",
-      };
-      if (diverging) trace.zmid = 0;
-      Plotly.newPlot("map-chart", [trace], {
-        mapbox: { style: "carto-positron", center: { lat: 37.2, lon: -119.5 }, zoom: 4.5 },
-        margin: { l: 0, r: 0, t: 40, b: 0 },
-        title: spec.title + (spec.subtitle ? " — " + spec.subtitle : ""),
-        height: 620,
-      }, { responsive: true });
-    }
-
-    function renderModel() {
-      const key = catalogKey();
-      const entry = catalog[key];
-      const note = document.getElementById("re-note");
-      const stats = document.getElementById("stats");
-      if (!entry) {
-        Plotly.purge("model-chart");
-        document.getElementById("model-chart").innerHTML = "<p style='padding:1rem'>No pre-computed result for this combination.</p>";
-        stats.textContent = "";
-        note.textContent = "";
-        return;
-      }
-      const re = entry.hierarchy_re || {};
-      if (entry.fit_mode === "hierarchical") {
-        note.textContent = re.year_re_available
-          ? "Year random effects: enabled per model policy for this predictor."
-          : "Year random effects are not available for percent-change predictors (predictor is constant across panel years).";
-      } else {
-        note.textContent = "";
-      }
-      Plotly.newPlot("model-chart", entry.plotly.data, entry.plotly.layout, { responsive: true });
-      const s = entry.stats || {};
-      stats.innerHTML = `<strong>McFadden R²</strong>: ${s.mcfadden_r2 ?? "—"} · <strong>OLS R² (y&gt;0)</strong>: ${s.ols_r2 ?? "—"} · <strong>β (MLE)</strong>: ${s.mle_beta ?? "—"}`;
-    }
-
-    function wire() {
-      document.getElementById("map-metric").onchange = renderMap;
-      ["geo", "dr-type", "cat-suffix", "x-col", "robustness", "fit-mode"].forEach(id => {
-        document.getElementById(id).onchange = () => {
-          if (id === "dr-type") updateRobustnessState();
-          renderModel();
-        };
-      });
-      updateRobustnessState();
-      renderMap();
+    const RELEASE_BASE="data/releases/2018-2024";
+    const MODEL_LABELS={stationary_bootstrap:"Two-Part MLE + Stationary Bootstrap",hierarchical:"Hierarchical Bayes",both:"Both"};
+    const MODEL_LEGEND={x:.02,y:.98,xanchor:"left",yanchor:"top",bgcolor:"rgba(255,255,255,.78)",bordercolor:"#ddd",borderwidth:1};
+    const GEO_NAMES={city:"City",zip:"ZIP code"};
+    const CHART_HEIGHT=560;
+    const CHART_MARGIN={l:60,r:30,t:30,b:80};
+    let artifacts=null;
+    let modelRendered=false;
+    const byId=id=>document.getElementById(id);
+    function mapMetricLabel(metric){if(!metric)return"";const y=metric.y_col;if(y&&artifacts?.labels?.variables?.[y])return artifacts.labels.variables[y];if(y&&artifacts?.labels?.outcomes?.[y])return artifacts.labels.outcomes[y];return metric.title||metric.key}
+    function option(value,label=value){const o=document.createElement("option");o.value=value;o.textContent=label;return o}
+    function replaceOptions(id,values,labeler=v=>v,preferred){const el=byId(id),old=preferred??el.value;el.replaceChildren(...values.map(v=>option(v,labeler(v))));el.value=values.includes(old)?old:(values[0]??"")}
+    function setTab(name){
+      document.querySelectorAll(".panel").forEach(e=>e.classList.toggle("active",e.id===`panel-${name}`));
+      document.querySelectorAll(".tabs button").forEach(e=>e.classList.toggle("active",e.id===`tab-${name}`));
+      if(name!=="models")return;
       renderModel();
+      if(modelRendered)Plotly.Plots.resize(byId("model-chart"));
     }
-
-    async function load() {
-      try {
-        const [manifest, cat, metrics, geo] = await Promise.all([
-          fetch("data/manifest.json").then(r => r.json()),
-          fetch("data/catalog.json").then(r => r.json()),
-          fetch("data/map_metrics.json").then(r => r.json()),
-          fetch("data/maps.geojson").then(r => r.json()),
-        ]);
-        catalog = cat;
-        mapMetrics = metrics;
-        geojson = geo;
-        document.getElementById("status").textContent = "";
-        document.getElementById("build-info").textContent = manifest.built_at
-          ? `Site built: ${manifest.built_at} · ${manifest.n_regressions ?? 0} regression chart(s) in catalog`
-          : "";
-        const mapSel = document.getElementById("map-metric");
-        metrics.forEach(m => {
-          const o = document.createElement("option");
-          o.value = m.key; o.textContent = m.title;
-          mapSel.appendChild(o);
-        });
-        parseCatalogOptions();
-        wire();
-      } catch (e) {
-        document.getElementById("status").textContent =
-          "Data not loaded. Run GitHub Actions build or scripts/export_pages_catalog.py locally.";
-        console.error(e);
+    byId("tab-maps").onclick=()=>setTab("maps");byId("tab-models").onclick=()=>setTab("models");
+    function entries(){return Object.entries(artifacts.catalog).map(([key,p])=>({key,p,parts:key.split(":")}))}
+    function variableLabel(v){return artifacts.labels.variables?.[v]||artifacts.labels.outcomes?.[v]||artifacts.labels.predictors?.[v]||v}
+    function robustnessLabel(v){return v==="none"?"None":v}
+    function robustnessForGeo(geo){return [...new Set(entries().filter(e=>e.parts[0]===geo).map(e=>e.parts[3]))].sort()}
+    function edgesFor(geo,robustness){return entries().filter(e=>e.parts[0]===geo&&e.parts[3]===robustness)}
+    function neighborXs(geo,y,robustness){return [...new Set(edgesFor(geo,robustness).filter(e=>e.parts[1]===y&&e.parts[2]!==y).map(e=>e.parts[2]))].sort()}
+    function neighborYs(geo,x,robustness){return [...new Set(edgesFor(geo,robustness).filter(e=>e.parts[2]===x&&e.parts[1]!==x).map(e=>e.parts[1]))].sort()}
+    function catalogKey(){return `${byId("geo").value}:${byId("y-col").value}:${byId("x-col").value}:${byId("robustness").value}`}
+    function selectedPair(){return artifacts.catalog[catalogKey()]||null}
+    function settleModelControls(){
+      const geos=[...new Set(entries().map(e=>e.parts[0]))].sort();
+      replaceOptions("geo",geos,v=>GEO_NAMES[v]||v);
+      const geo=byId("geo").value;
+      replaceOptions("robustness",robustnessForGeo(geo),robustnessLabel);
+      const rob=byId("robustness").value,edgeRows=edgesFor(geo,rob);
+      const oldX=byId("x-col").value,oldY=byId("y-col").value;
+      const yCandidates=[...new Set(edgeRows.map(e=>e.parts[1]))].filter(y=>neighborXs(geo,y,rob).length).sort();
+      const xCandidates=[...new Set(edgeRows.map(e=>e.parts[2]))].filter(x=>neighborYs(geo,x,rob).length).sort();
+      let y,x,xs,ys;
+      if(yCandidates.includes(oldY)){
+        y=oldY;xs=neighborXs(geo,y,rob);x=xs.includes(oldX)?oldX:xs[0];ys=neighborYs(geo,x,rob);
+      }else if(xCandidates.includes(oldX)){
+        x=oldX;ys=neighborYs(geo,x,rob);y=ys.includes(oldY)?oldY:ys[0];xs=neighborXs(geo,y,rob);
+      }else{
+        y=yCandidates[0]||"";xs=neighborXs(geo,y,rob);x=xs[0]||"";ys=neighborYs(geo,x,rob);
       }
+      replaceOptions("y-col",ys,variableLabel,y);
+      replaceOptions("x-col",xs,variableLabel,x);
+      const pair=selectedPair();
+      const displays=pair?.availability?.hierarchical?["both","stationary_bootstrap","hierarchical"]:["stationary_bootstrap"];
+      replaceOptions("model-display",displays,v=>MODEL_LABELS[v]);
+      return pair;
     }
+    function bandTraces(x,component,name,color){if(!component?.lower||!component?.upper)return[];return[
+      {x,y:component.lower,mode:"lines",line:{width:0},showlegend:false,hoverinfo:"skip"},
+      {x,y:component.upper,mode:"lines",line:{width:0},fill:"tonexty",fillcolor:color+"33",name,hoverinfo:"skip"}
+    ]}
+    function meanTrace(x,component,name,color){if(!component?.mean)return[];return[
+      {x,y:component.mean,mode:"lines",line:{color,width:3},name}
+    ]}
+    function outcomeIsPer1000(yCol){return (artifacts.labels.per1000Outcomes||[]).includes(yCol)}
+    function yAxisTitle(pair){const base=variableLabel(pair.y_col);return outcomeIsPer1000(pair.y_col)?`${base} per 1,000 pop`:base}
+    function observationLegendName(pair){return pair.data_label||(byId("geo").value==="zip"?"ZIP codes":"Cities")}
+    function finiteNums(vals){return vals.filter(v=>Number.isFinite(Number(v))).map(Number)}
+    function paddedRange(vals){
+      const nums=finiteNums(vals);
+      if(!nums.length)return undefined;
+      const lo=Math.min(...nums),hi=Math.max(...nums),span=hi-lo;
+      const pad=span>0?span*.05:(Math.abs(hi)||1)*.05;
+      return [lo-pad,hi+pad];
+    }
+    function axisLayout(pair,traces){
+      const xs=[...(pair.x_grid||[])],ys=[];
+      for(const t of traces){if(Array.isArray(t.x))xs.push(...t.x);if(Array.isArray(t.y))ys.push(...t.y)}
+      const xrange=paddedRange(xs),yrange=paddedRange(ys),yNums=finiteNums(ys);
+      if(yrange&&yNums.length&&Math.min(...yNums)>=0&&yrange[0]<0)yrange[0]=0;
+      return {
+        xaxis:{title:variableLabel(pair.x_col),...(xrange?{range:xrange}:{})},
+        yaxis:{title:yAxisTitle(pair),...(yrange?{range:yrange}:{})},
+        legend:MODEL_LEGEND,margin:CHART_MARGIN,height:CHART_HEIGHT
+      };
+    }
+    function clearModelChart(message){
+      const el=byId("model-chart");
+      if(el.data)Plotly.purge(el);
+      el.classList.add("is-empty");
+      el.innerHTML=message?`<p>${message}</p>`:"";
+      byId("stats").innerHTML="";byId("coef-table").innerHTML="";
+      modelRendered=false;
+    }
+    function viewKeyForPair(pair){return pair.model_family==="continuous"?"positive_only":byId("zero-values").value}
+    function renderModel(){
+      const pair=settleModelControls();
+      if(!pair){clearModelChart("This combination was not exported (insufficient jurisdictions or missing yearly data). Choose another pair.");return}
+      const viewName=viewKeyForPair(pair),view=pair.views[viewName],display=byId("model-display").value;
+      if(!view){clearModelChart("This combination was not exported (insufficient jurisdictions or missing yearly data). Choose another pair.");return}
+      const keepZeros=viewName==="two_part_hurdle",obs=pair.observations,idx=obs.y.map((y,i)=>[y,i]).filter(([y])=>keepZeros||y>0).map(([,i])=>i);
+      const names=idx.map(i=>obs.labels?.[i]).filter(Boolean);
+      const scatter={x:idx.map(i=>obs.x[i]),y:idx.map(i=>obs.y[i]),mode:"markers",type:"scatter",name:observationLegendName(pair),marker:{color:idx.map(i=>obs.y[i]===0?"#777":"#222")}};
+      if(names.length===idx.length){scatter.text=names;scatter.hovertemplate="%{text}<br>(%{x}, %{y})<extra></extra>"}
+      let traces=[scatter];
+      const mleName=pair.model_family==="continuous"?"MLE":"Two-part MLE";
+      if(display!=="hierarchical"){traces.push(...bandTraces(pair.x_grid,view.stationary_bootstrap,"Stationary bootstrap 95% interval","#0097a7"));traces.push(...meanTrace(pair.x_grid,view.mle,mleName,"#0097a7"))}
+      if(display!=="stationary_bootstrap"){traces.push(...bandTraces(pair.x_grid,view.hierarchical,"Posterior 95% credible interval","#c2185b"));traces.push(...meanTrace(pair.x_grid,view.hierarchical,"Posterior Predictive Mean (with county-level random effects)","#c2185b"))}
+      const el=byId("model-chart");
+      el.classList.remove("is-empty");
+      Plotly.newPlot(el,traces,axisLayout(pair,traces),{responsive:true});
+      modelRendered=true;
+      renderStats(pair);
+    }
+    function renderStats(pair){const s=pair.stats,tp=s.two_part||{},f=v=>v==null?"—":Number(v).toFixed(4);byId("stats").innerHTML=`<p><strong>McFadden R²:</strong> ${f(s.mcfadden_r2)} · <strong>OLS R² (y&gt;0):</strong> ${f(s.ols_r2)}</p><p>Zero part (logit); Positive part (OLS on y &gt; 0).</p>`;byId("coef-table").innerHTML=`<table><thead><tr><th>Part</th><th>Parameter</th><th>Coefficient</th><th>t</th><th>p</th></tr></thead><tbody><tr><td>Zero</td><td>α</td><td>${f(tp.alpha)}</td><td>—</td><td>—</td></tr><tr><td>Zero</td><td>β</td><td>${f(tp.beta)}</td><td>${f(tp.beta_t)}</td><td>${f(tp.beta_p)}</td></tr><tr><td>Positive</td><td>γ</td><td>${f(tp.intercept)}</td><td>—</td><td>—</td></tr><tr><td>Positive</td><td>δ</td><td>${f(tp.slope)}</td><td>${f(tp.slope_t)}</td><td>${f(tp.slope_p)}</td></tr></tbody></table>`}
+    function renderMap(){const metric=artifacts.mapMetrics.find(m=>m.key===byId("map-metric").value);if(!metric)return;const mode=byId("map-geography").value,types=mode==="incorporated_cities"?["city"]:mode==="whole_counties"?["county_whole"]:["city","county_residual"],features=artifacts.geojson.features.filter(f=>types.includes(f.properties.geo_type));
+      const geo={...artifacts.geojson,features},div=metric.cmap_kind==="div",sub={incorporated_cities:"Incorporated city jurisdictions",whole_counties:"Whole county jurisdictions",cities_plus_unincorporated:"Incorporated cities and unincorporated county jurisdictions"}[mode];byId("map-subheader").textContent=sub;
+      byId("map-unit-hint").textContent=metric.unit==="per_1000_pop"?"(per 1,000 population)":"";
+      const z=features.map(f=>f.properties[metric.metric_col]),finite=z.filter(v=>Number.isFinite(Number(v))).map(Number);
+      const trace={type:"choroplethmapbox",geojson:geo,locations:features.map(f=>f.properties.feature_id),z,featureidkey:"properties.feature_id",colorscale:div?"RdYlGn":"PuRd",below:"water",marker:{opacity:.92,line:{color:"rgba(255,255,255,.72)",width:.45}},text:features.map(f=>f.properties.city_name||f.properties.county_name),hovertemplate:"%{text}<br>%{z}<extra></extra>"};if(finite.length){if(div){const bound=Math.max(...finite.map(v=>Math.abs(v)));trace.zmid=0;trace.zmin=-bound;trace.zmax=bound}else{trace.zmin=Math.min(...finite);trace.zmax=Math.max(...finite)}};Plotly.newPlot("map-chart",[trace],{title:mapMetricLabel(metric),dragmode:"zoom",uirevision:`${mode}:${metric.key}`,mapbox:{style:"carto-positron",center:{lat:37.2,lon:-119.5},zoom:4.5},margin:{l:0,r:0,t:45,b:0}},{responsive:true,scrollZoom:true})
+    }
+    async function load(){try{const names=["manifest.json","chart_labels.json","catalog.json","map_metrics.json","maps.geojson"],vals=await Promise.all(names.map(n=>fetch(`${RELEASE_BASE}/${n}`).then(r=>{if(!r.ok)throw Error(`${n}: ${r.status}`);return r.json()})));artifacts={manifest:vals[0],labels:vals[1],catalog:vals[2],mapMetrics:vals[3],geojson:vals[4]};replaceOptions("map-metric",artifacts.mapMetrics.map(m=>m.key),k=>mapMetricLabel(artifacts.mapMetrics.find(m=>m.key===k)));["geo","y-col","x-col","robustness","model-display","zero-values"].forEach(id=>byId(id).onchange=renderModel);byId("map-geography").onchange=renderMap;byId("map-metric").onchange=renderMap;byId("status").textContent="";byId("build-info").textContent=`Release ${artifacts.manifest.release_id} built ${artifacts.manifest.built_at}`;settleModelControls();renderMap()}catch(e){byId("status").textContent=`Archived release could not be loaded: ${e.message}`;console.error(e)}}
     load();
   </script>
 </body>
