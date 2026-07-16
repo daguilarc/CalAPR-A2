@@ -1,4 +1,4 @@
-Regression (Multifamily, per 1000 pop)	Geography	McFadden R2	OLS positive R2	OLS positive β	Zero Hurdle β	Posterior β
+Regression (Multifamily, per 1000 pop)	Geography	McFadden R2	OLS positive R2	OLS positive β	Zero MLE β	Posterior β
 Deed-Restricted Density-Bonus CO vs Net CO	City (- # 20%)	0.07	0.3	0.12	0.08	0.3
 Deed-Restricted Density-Bonus CO vs Net CO	City (excl. SF - # 20%)	0.07	0.31	0.14	0.08	0.31
 Deed-Restricted Density-Bonus CO vs Net CO	ZIP codes	0.09	0.54	0.13	0.01	0.4

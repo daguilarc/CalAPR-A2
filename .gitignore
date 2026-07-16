@@ -13,6 +13,13 @@ TableA2-ACSjoin/tablea2.csv
 !docs/PAGES_SETUP.md
 !docs/index.html
 !docs/chart_labels.json
+!docs/data/releases/
+!docs/data/releases/**/*
+!openspec/
+!openspec/**/*
+!README.md
+!requirements-pages-release.txt
+!requirements-pages-release.lock
 *.log
 
 # GitHub Pages census cache bundle
@@ -25,3 +32,17 @@ TableA2-models/maps/boundaries/
 
 # Census county FIPS reference (auto-downloaded by acs_apr_models.py if absent)
 **/national_county2020.txt
+
+# Local agent scratch / deps / personal
+.superpowers/
+e2e/node_modules/
+e2e/.pw-browsers/
+e2e/test-results/
+Chase_*.pdf
+
+# Re-include OpenSpec markdown and release JSON after *.md / *.json ignores
+!openspec/**/*.md
+!openspec/**/*.yaml
+!docs/data/releases/**/*.json
+!docs/data/releases/**/*.js
+!docs/data/releases/**/*.geojson

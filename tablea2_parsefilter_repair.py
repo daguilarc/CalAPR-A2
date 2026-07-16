@@ -119,14 +119,35 @@ warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
 
 _THIS_DIR = Path(__file__).resolve().parent
 
-# Same directory as this file after resolve (stable when run via symlink from a subfolder).
-_out_dir = _THIS_DIR
-apr_path = _out_dir / "tablea2.csv"
-cleaned_path = _out_dir / "tablea2_cleaned_parsefilter_repair.csv"
-date_year_mismatch_path = _out_dir / "date_year_mismatch_rows_parsefilter_repair.csv"
-matched_truncated_path = _out_dir / "matched_truncated_repair.csv"
-unmatched_truncated_path = _out_dir / "unmatched_truncated_repair.csv"
-ambiguous_truncated_path = _out_dir / "ambiguous_truncated_repair.csv"
+_input_dir = _THIS_DIR
+_output_dir = _THIS_DIR
+apr_path = _input_dir / "tablea2.csv"
+cleaned_path = _output_dir / "tablea2_cleaned_parsefilter_repair.csv"
+date_year_mismatch_path = _output_dir / "date_year_mismatch_rows_parsefilter_repair.csv"
+matched_truncated_path = _output_dir / "matched_truncated_repair.csv"
+unmatched_truncated_path = _output_dir / "unmatched_truncated_repair.csv"
+ambiguous_truncated_path = _output_dir / "ambiguous_truncated_repair.csv"
+
+
+def _set_paths(base_dir: Path, output_dir: Path | None = None) -> None:
+    global _input_dir
+    global _output_dir
+    global apr_path
+    global cleaned_path
+    global date_year_mismatch_path
+    global matched_truncated_path
+    global unmatched_truncated_path
+    global ambiguous_truncated_path
+
+    _input_dir = Path(base_dir).resolve()
+    _output_dir = Path(output_dir).resolve() if output_dir is not None else _input_dir
+
+    apr_path = _input_dir / "tablea2.csv"
+    cleaned_path = _output_dir / "tablea2_cleaned_parsefilter_repair.csv"
+    date_year_mismatch_path = _output_dir / "date_year_mismatch_rows_parsefilter_repair.csv"
+    matched_truncated_path = _output_dir / "matched_truncated_repair.csv"
+    unmatched_truncated_path = _output_dir / "unmatched_truncated_repair.csv"
+    ambiguous_truncated_path = _output_dir / "ambiguous_truncated_repair.csv"
 
 _A2_REQUIRED_HEADERS = {"A2_1_ID", "A2_18_Affordable"}
 _A2_TEXT_COLUMNS = ("NO_FA_DR", "NOTES", "FIN_ASSIST_NAME")
@@ -421,7 +442,7 @@ def _resolve_workbook_path(row):
     juris = _to_workbook_stem(row.get("JURIS_NAME", ""))
     if not year or not juris:
         return None
-    candidate = _out_dir / f"{juris}{year}.xlsm"
+    candidate = _input_dir / f"{juris}{year}.xlsm"
     return candidate if candidate.exists() else None
 
 
@@ -1015,6 +1036,11 @@ def main():
     print(f"Date-year mismatches: {date_year_mismatch_path} ({len(df_dropped):,})")
 
 
-if __name__ == "__main__":
+def run_repair(base_dir: Path, output_dir: Path | None = None) -> None:
+    _set_paths(base_dir, output_dir)
     main()
+
+
+if __name__ == "__main__":
+    run_repair(_THIS_DIR, _THIS_DIR)
 

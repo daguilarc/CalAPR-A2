@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import numpy as np
@@ -21,28 +20,12 @@ def _labels_tolist(labels: Any) -> list[str]:
     return [str(x) for x in labels]
 
 
-def hierarchy_re_summary(x_col: str, x_varies_by_year: bool = False) -> dict[str, Any]:
-    from acs_apr_models import _hierarchy_re_policy
-
-    use_year_i, use_year_s, use_county, use_sign = _hierarchy_re_policy(x_col, x_varies_by_year)
-    year_re_available = bool(use_year_i or use_year_s)
-    return {
-        "year_re_available": year_re_available,
-        "use_year_intercept_re": use_year_i,
-        "use_year_slope_re": use_year_s,
-        "use_county_re": use_county,
-        "use_sign_re": use_sign,
-    }
-
-
 def build_two_part_figure(
     *,
     x_scatter: np.ndarray,
     y_scatter: np.ndarray,
     x_line: np.ndarray,
     mle_y: np.ndarray,
-    x_label: str,
-    y_label: str,
     labels: np.ndarray | None,
     fit_mode: str,
     mcfadden_r2: float,
@@ -54,6 +37,7 @@ def build_two_part_figure(
     bayes_ci_hi: np.ndarray | None = None,
     bayes_mean: np.ndarray | None = None,
     ppm_beta: float | None = None,
+    two_part: dict | None = None,
 ) -> dict[str, Any]:
     """Return a Plotly figure as a JSON-serializable dict."""
     nz = y_scatter > 0
@@ -137,8 +121,6 @@ def build_two_part_figure(
 
     fig.update_layout(
         title="",
-        xaxis_title=x_label.replace("\n", "<br>"),
-        yaxis_title=y_label,
         template="plotly_white",
         height=560,
         margin={"l": 60, "r": 30, "t": 30, "b": 80},
@@ -150,41 +132,8 @@ def build_two_part_figure(
         "mle_beta": float(mle_beta) if mle_beta is not None else None,
         "ppm_beta": float(ppm_beta) if ppm_beta is not None else None,
     }
+    if two_part is not None:
+        stats["two_part"] = two_part
     return {"plotly": fig.to_dict(), "stats": stats}
 
 
-def build_choropleth_figure(
-    geojson: dict,
-    z_values: list,
-    locations: list,
-    featureidkey: str,
-    title: str,
-    colorscale: str,
-    zmid: float | None = None,
-) -> dict[str, Any]:
-    fig = go.Figure(
-        go.Choroplethmapbox(
-            geojson=geojson,
-            locations=locations,
-            z=z_values,
-            featureidkey=featureidkey,
-            colorscale=colorscale,
-            zmid=zmid,
-            marker_opacity=0.75,
-            marker_line_width=0.2,
-            colorbar={"title": title},
-        )
-    )
-    fig.update_layout(
-        mapbox_style="carto-positron",
-        mapbox_zoom=4.5,
-        mapbox_center={"lat": 37.2, "lon": -119.5},
-        margin={"l": 0, "r": 0, "t": 40, "b": 0},
-        height=620,
-        title=title,
-    )
-    return fig.to_dict()
-
-
-def dumps_json(obj: Any) -> str:
-    return json.dumps(obj, allow_nan=False)

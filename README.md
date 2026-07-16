@@ -1,6 +1,32 @@
 # CSVparse_hcd_apr
-various attempts to parse large CSVs from California HCD's Annual Progress Report (APR) dashboard
-https://data.ca.gov/dataset/housing-element-annual-progress-report-apr-data-by-jurisdiction-and-year
+
+California HCD Annual Progress Report (APR) parsing, publication models, and the static [APR Explorer](https://data.ca.gov/dataset/housing-element-annual-progress-report-apr-data-by-jurisdiction-and-year).
+
+## Entry points
+
+| Pipeline | Command |
+|----------|---------|
+| **Original publication** | `python scripts/run_original_models.py` (or `python TableA2-models/acs_apr_models.py`) |
+| **Pages catalog (full ENT-only Cartesian)** | `python scripts/export_pages_catalog.py --release-id 2018-2024 --staging-dir <path>` |
+| **Verify release** | `python scripts/verify_pages_catalog.py <staging-path>` |
+| **Explorer e2e (after full build)** | `scripts/run_explorer_e2e.sh` |
+| **Fixture smoke (not Playwright)** | `scripts/setup_local_site_test.sh` |
+| **Static site** | `python3 -m http.server 8765 --directory docs` |
+
+Full build → verify → promote to `docs/data/releases/2018-2024/` → Playwright. See `docs/PAGES_SETUP.md`.
+
+## Layout
+
+```
+TableA2-models/
+  acs_apr_models.py      # shared library
+  panel_context.py       # shared Steps 1–11
+  original/              # publication pipeline
+  pages/                 # explorer catalog pipeline
+scripts/
+  run_original_models.py
+  export_pages_catalog.py
+```
 
 ## Dependencies
 
