@@ -560,7 +560,11 @@ class RegistryAndMapFormulaTests(unittest.TestCase):
 class StaticContractTests(unittest.TestCase):
     def test_literal_header_footer_and_external_labels(self):
         html = (ROOT / "docs/index.html").read_text(encoding="utf-8")
-        self.assertRegex(html, r"<h1[^>]*>California Multifamily Housing APR Explorer</h1>\s*<p[^>]*>HCD APR data: 2018–2024</p>")
+        self.assertRegex(
+            html,
+            r"<h1[^>]*>California Multifamily Housing APR Explorer</h1>\s*"
+            r"<p[^>]*>HCD APR data: 2018–2024, projects with 5\+ dwelling units</p>",
+        )
         for text in (
             "2020–2024 American Community Survey (ACS) 5-Year Estimates",
             "2014–2018 and 2020–2024 ACS 5-Year Estimates",
@@ -572,7 +576,7 @@ class StaticContractTests(unittest.TestCase):
         ):
             self.assertIn(text, html)
         self.assertNotIn("const CHART_LABELS = {", html)
-        for token in ("per1000Outcomes", "predictorApplicability", "variableApplicability", "MODEL_LEGEND", "xanchor:\"left\"", "yanchor:\"top\"", "Two-part MLE", "Stationary bootstrap 95% interval", "Coefficient", "map-unit-hint", "below:\"water\"", "line:{color:\"rgba(255,255,255,.72)\",width:.45}", "scrollZoom:true", "zmin", "zmax"):
+        for token in ("per1000Outcomes", "MODEL_LEGEND", "xanchor:\"left\"", "yanchor:\"top\"", "Two-part MLE", "Stationary bootstrap 95% interval", "Coefficient", "map-unit-hint", "below:\"water\"", "line:{color:\"rgba(255,255,255,.72)\",width:.45}", "scrollZoom:true", "zmin", "zmax"):
             self.assertIn(token, html)
         labels = json.loads((ROOT / "docs/chart_labels.json").read_text(encoding="utf-8"))
         self.assertIsInstance(labels["predictors"], dict)
@@ -585,6 +589,56 @@ class StaticContractTests(unittest.TestCase):
         self.assertNotIn("median_income", labels["predictorApplicability"]["city"])
         for values in labels["predictorApplicability"].values():
             self.assertLessEqual(set(values), set(labels["predictors"]))
+
+    def test_explorer_ux_source_contracts(self):
+        html = (ROOT / "docs/index.html").read_text(encoding="utf-8")
+        self.assertRegex(
+            html,
+            r'(?s)<section id="panel-models"[^>]*>.*?<select id="geo"></select>.*?</section>',
+        )
+        self.assertNotRegex(
+            html,
+            r'(?s)<div class="tab-row">.*?<select id="geo".*?</div>\s*</div>',
+        )
+        self.assertRegex(
+            html,
+            r'(?s)<section id="panel-maps"[^>]*>\s*'
+            r'<div class="controls model-grid">.*?'
+            r'<select id="map-geography">.*?<select id="map-metric">',
+        )
+        for token in (
+            "marker:{opacity:.92",
+            "function neighborXs(",
+            "function neighborYs(",
+            "function settleModelControls(",
+            'replaceOptions("y-col",ys,variableLabel,y)',
+            'replaceOptions("x-col",xs,variableLabel,x)',
+            'pair.model_family==="continuous"?"positive_only"',
+            "Robustness Checks",
+            'v==="none"?"None":v',
+        ):
+            self.assertIn(token, html)
+
+    def test_shipped_release_is_multifamily_only(self):
+        release = ROOT / "docs/data/releases/2018-2024"
+        catalog = json.loads((release / "catalog.json").read_text(encoding="utf-8"))
+        metrics = json.loads((release / "map_metrics.json").read_text(encoding="utf-8"))
+
+        for pair in catalog.values():
+            for field in ("x_col", "y_col"):
+                value = pair[field]
+                self.assertFalse(value.startswith("TOTAL_") and not value.startswith("TOTAL_MF_"), value)
+                self.assertFalse(value.startswith("total_owner_"), value)
+                if pair["geography"] == "zip":
+                    self.assertNotIn(value, {"net_CO", "net_BP", "net_ENT"})
+
+        for metric in metrics:
+            value = metric["y_col"] or metric["key"]
+            self.assertFalse(value.startswith("TOTAL_") and not value.startswith("TOTAL_MF_"), value)
+            self.assertFalse(value.startswith("total_owner_"), value)
+
+        self.assertTrue(any(pair["y_col"].startswith("TOTAL_MF_") for pair in catalog.values()))
+        self.assertTrue(any(metric["key"].startswith("TOTAL_MF_") for metric in metrics))
 
     def test_workflow_is_owner_only_manual_and_verifies_before_publish(self):
         workflow = (ROOT / ".github/workflows/build-pages.yml").read_text(encoding="utf-8")
