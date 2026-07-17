@@ -11,7 +11,7 @@ from panel_context import prepare_panel_context
 
 def prepare_pages_context(base_path: Path | None = None) -> dict[str, Any]:
     """Build shared panel (Steps 1-11), then ZIP panel only for Pages."""
-    panel_ctx = prepare_panel_context(base_path=base_path, run_poisson=False)
+    panel_ctx = prepare_panel_context(base_path=base_path)
     base_output_dir = panel_ctx["base_output_dir"]
 
     zip_panel = _run_zip_regressions(

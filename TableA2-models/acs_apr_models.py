@@ -5216,9 +5216,8 @@ def _prepare_apr_db_inc(
     is_city_all,
     base_output_dir,
     all_r2_results,
-    run_poisson=True,
 ):
-    """Filter APR to DB/INC MFH; numeric clean; Poisson; merge city aggregates."""
+    """Filter APR to DB/INC MFH; numeric clean; merge city aggregates."""
     # Step 8b: Extract density bonus/inclusionary subset from APR master
     print("\nExtracting density bonus/inclusionary data from APR master...")
 
@@ -5302,15 +5301,6 @@ def _prepare_apr_db_inc(
     # Define years for analysis
     permit_years = [2018, 2019, 2020, 2021, 2022, 2023, 2024]
     df_apr_db_inc = df_apr_db_inc[df_apr_db_inc["YEAR"].isin(permit_years)]
-    if run_poisson:
-        from original.poisson_count_models import _attach_poisson_owner_x_rule_a, run_poisson_count_models
-
-        df_apr_db_inc = _attach_poisson_owner_x_rule_a(
-            df_apr_db_inc, df_apr_all, mf_mask_all, phase_context,
-        )
-        run_poisson_count_models(
-            df_apr_db_inc, base_output_dir, all_r2_results, co_cols, bp_cols, ent_cols,
-        )
 
     (
         df_final,

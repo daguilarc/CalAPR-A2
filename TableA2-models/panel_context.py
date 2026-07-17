@@ -20,7 +20,7 @@ from acs_apr_models import (
 )
 
 
-def prepare_panel_context(base_path: Path | None = None, run_poisson: bool = True) -> dict[str, Any]:
+def prepare_panel_context(base_path: Path | None = None) -> dict[str, Any]:
     """Build shared panel context through Step 11 for downstream pipelines."""
     base_output_dir = Path(base_path) if base_path else Path(__file__).resolve().parent
     all_r2_results: list[tuple[Any, ...]] = []
@@ -89,7 +89,6 @@ def prepare_panel_context(base_path: Path | None = None, run_poisson: bool = Tru
         is_city_all,
         base_output_dir,
         all_r2_results,
-        run_poisson=run_poisson,
     )
     df_final = _append_county_rows(
         df_final,

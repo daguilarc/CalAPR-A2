@@ -9,8 +9,8 @@ from panel_context import prepare_panel_context
 
 
 def prepare_original_context(base_path: Path | None = None) -> dict[str, Any]:
-    """Build shared panel context with Poisson enabled for original-model pipeline."""
-    ctx = prepare_panel_context(base_path=base_path, run_poisson=True)
+    """Build shared panel context for original-model pipeline."""
+    ctx = prepare_panel_context(base_path=base_path)
     return {
         **ctx,
         "df_zip": None,
