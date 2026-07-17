@@ -2936,54 +2936,48 @@ def stationary_bootstrap_ols(x, y, n_boot=10000, min_success=100):
     return arr[:, 0], arr[:, 1]
 
 
-def hierarchical_ci_transformed(df, year_col, x_col, y_col, years, x_transform='log', y_transform='log', n_draws=5000, county_col='county'):
+def hierarchical_ci_transformed(df, x_col, y_col, x_transform='log', y_transform='log', n_draws=5000, county_col='county'):
     """Hierarchical Bayesian CI for transformed outcome (non-hurdle, single-part OLS-style).
-    Hierarchy: population -> year REs -> county REs (omitted when x_col in X_COL_MSA_INCOME_PREDICTORS).
-    Fallback: hierarchical SMC -> stationary MC bootstrap."""
-    if df.empty or year_col not in df.columns or x_col not in df.columns or y_col not in df.columns:
-        reason = "empty df" if df.empty else f"missing columns: {[c for c in [year_col, x_col, y_col] if c not in df.columns]}"
+    Fit on the jurisdiction cross-section: one row per jurisdiction (the same totals frame
+    the two-part MLE / OLS fit uses). Hierarchy: population -> county REs (no year layer;
+    no jurisdiction-year panel). County REs omitted when x_col in X_COL_MSA_INCOME_PREDICTORS.
+    Fallback: hierarchical SMC -> None (no bootstrap inside this function)."""
+    if df.empty or x_col not in df.columns or y_col not in df.columns:
+        reason = "empty df" if df.empty else f"missing columns: {[c for c in [x_col, y_col] if c not in df.columns]}"
         print(f"  [hierarchical_ci_transformed] None: {reason}")
         return None
-    year_to_idx = {yr: i for i, yr in enumerate(years)}
-    n_years = len(years)
-    county_to_idx, n_counties = _build_county_to_idx(df, year_col, years, county_col)
-    x_all, y_trans_all, year_idx_all, county_idx_all = [], [], [], []
     x_allow_negative = (x_transform == 'identity' or x_transform == 'asinh')
     y_allow_negative = (y_transform == 'identity')
-    for year in years:
-        vd = df[df[year_col] == year].copy()
-        if vd.empty:
-            continue
-        x_vals = np.asarray(vd[x_col].values, dtype=np.float64)
-        y_vals = np.asarray(vd[y_col].values, dtype=np.float64)
-        x_ok = np.isfinite(x_vals) if x_allow_negative else (np.isfinite(x_vals) & (x_vals > 0))
-        y_ok = np.isfinite(y_vals) if y_allow_negative else (np.isfinite(y_vals) & (y_vals > 0))
-        valid = x_ok & y_ok
-        if not np.any(valid):
-            continue
-        x_vals, y_vals = x_vals[valid], y_vals[valid]
-        if x_transform == 'log':
-            x_trans = np.log(np.maximum(x_vals, 1e-300))
-        elif x_transform == 'asinh':
-            x_trans = np.arcsinh(x_vals)
-        else:
-            x_trans = x_vals
-        y_trans = np.log(np.maximum(y_vals, 1e-300)) if y_transform == 'log' else y_vals
-        x_all.extend(x_trans.tolist())
-        y_trans_all.extend(y_trans.tolist())
-        year_idx_all.extend([year_to_idx[year]] * len(x_trans))
-        if n_counties >= 2:
-            county_idx_all.extend(vd.loc[valid, county_col].map(county_to_idx).astype(np.intp).tolist())
-    if len(x_all) < 20:
-        print(f"  [hierarchical_ci_transformed] None: valid (x,y) count {len(x_all)} < 20")
+    x_vals_all = np.asarray(df[x_col].values, dtype=np.float64)
+    y_vals_all = np.asarray(df[y_col].values, dtype=np.float64)
+    x_ok = np.isfinite(x_vals_all) if x_allow_negative else (np.isfinite(x_vals_all) & (x_vals_all > 0))
+    y_ok = np.isfinite(y_vals_all) if y_allow_negative else (np.isfinite(y_vals_all) & (y_vals_all > 0))
+    row_valid = x_ok & y_ok
+    vd = df[row_valid]
+    if len(vd) < 20:
+        print(f"  [hierarchical_ci_transformed] None: valid (x,y) count {len(vd)} < 20")
         return None
-    x_arr = np.array(x_all, dtype=np.float64)
-    y_arr = np.array(y_trans_all, dtype=np.float64)
-    year_idx = np.array(year_idx_all, dtype=np.intp)
-    county_idx = np.array(county_idx_all, dtype=np.intp) if county_idx_all else None
+    x_vals = x_vals_all[row_valid]
+    y_vals = y_vals_all[row_valid]
+    county_to_idx, n_counties = {}, 0
+    if county_col and county_col in df.columns:
+        uniq = vd[county_col].dropna().unique()
+        n_counties = len(uniq)
+        if n_counties >= 2:
+            county_to_idx = {c: i for i, c in enumerate(uniq)}
+    if x_transform == 'log':
+        x_trans = np.log(np.maximum(x_vals, 1e-300))
+    elif x_transform == 'asinh':
+        x_trans = np.arcsinh(x_vals)
+    else:
+        x_trans = x_vals
+    y_trans = np.log(np.maximum(y_vals, 1e-300)) if y_transform == 'log' else y_vals
+    county_idx = vd[county_col].map(county_to_idx).astype(np.intp).values if n_counties >= 2 else None
+    x_arr = np.asarray(x_trans, dtype=np.float64)
+    y_arr = np.asarray(y_trans, dtype=np.float64)
     valid = np.isfinite(x_arr) & np.isfinite(y_arr)
     if not np.all(valid):
-        x_arr, y_arr, year_idx = x_arr[valid], y_arr[valid], year_idx[valid]
+        x_arr, y_arr = x_arr[valid], y_arr[valid]
         if county_idx is not None:
             county_idx = county_idx[valid]
     if len(x_arr) < 20:
@@ -3226,28 +3220,6 @@ def mle_two_part(x, y_rate):
         'n_total': n_total, 'n_pos': n_pos, 'n_zero': n_zero,
         'x': x_all, 'y_rate': y_all,
     }
-
-
-def _build_county_to_idx(df, year_col, years, county_col='county'):
-    """Build county -> index mapping for hierarchical model second level (always county).
-    Returns (county_to_idx, n_counties); county_to_idx is non-empty only when n_counties >= 2.
-
-    Singleton county groups (e.g. San Francisco city-county): mixed/random-effects models handle
-    uneven group sizes; singletons contribute to slopes and total variance but not to
-    within-cluster variance partitioning, and are heavily shrunk toward the grand mean via the
-    HalfNormal prior on county RE scale (partial pooling). See:
-    https://stats.stackexchange.com/questions/482555/single-observation-with-some-groups-multilevel-model-or-other-analysis
-    McNeish & Stapleton (2016), "The Effect of Small Sample Size on Two-Level Model Estimates,"
-    Educational Psychology Review 28, https://doi.org/10.1007/s10648-014-9287-x
-    """
-    county_to_idx = {}
-    n_counties = 0
-    if county_col and county_col in df.columns:
-        uniq = df.loc[df[year_col].isin(years), county_col].dropna().unique()
-        n_counties = len(uniq)
-        if n_counties >= 2:
-            county_to_idx = {c: i for i, c in enumerate(uniq)}
-    return (county_to_idx, n_counties)
 
 
 def _hlog(tag, msg):
@@ -3931,40 +3903,18 @@ def _fit_econ_y_pair(pair, frame, label_col):
     }
 
 
-def _housing_yearly_panel_city(df_final, x_col, y_col, permit_years):
-    """(JURISDICTION, county, year, x_col) panel from a city housing column's yearly
-    components, with the year-invariant econ y_col carried along on every row."""
-    from pages.pair_registry import parse_city_outcome
-
-    try:
-        dr_type, cat_suffix = parse_city_outcome(x_col)
-    except ValueError:
+def _econ_y_county_hierarchical_ci(pair, frame):
+    """County-hierarchical Bayes CI for an econ-as-Y pair, on the jurisdiction
+    cross-section (one row per jurisdiction: x_col, y_col, county) -- the same frame
+    the OLS point estimate (_fit_econ_y_pair) is fit on. Best-effort: None if the
+    frame lacks the needed columns."""
+    if frame is None or frame.empty:
         return None
-    cat_prefix = f"{dr_type}_{cat_suffix}"
-    yearly_cols = [y for y in permit_years if f"{cat_prefix}_{y}" in df_final.columns]
-    if not yearly_cols or y_col not in df_final.columns:
-        return None
-    keep_cols = ["JURISDICTION", "county", y_col]
-    panel = _melt_jurisdiction_years(
-        df_final, keep_cols, yearly_cols,
-        lambda d, y: {x_col: d[f"{cat_prefix}_{y}"]},
-    )
-    return panel if not panel.empty else None
-
-
-def _econ_y_county_hierarchical_ci(pair, panel_yearly):
-    """County-hierarchical Bayes CI for an econ-as-Y pair, on a (year, x_col, y_col,
-    county) panel. Best-effort: None if no suitable yearly panel is available."""
-    if panel_yearly is None or panel_yearly.empty:
-        return None
-    if not {"year", "county", pair.x_col, pair.y_col}.issubset(panel_yearly.columns):
-        return None
-    years = sorted(panel_yearly["year"].dropna().unique().tolist())
-    if not years:
+    if not {"county", pair.x_col, pair.y_col}.issubset(frame.columns):
         return None
     x_transform = "log" if (_has_predictor_meta(pair.x_col) and _predictor_is_log_x(pair.x_col)) else "identity"
     return hierarchical_ci_transformed(
-        panel_yearly, "year", pair.x_col, pair.y_col, years,
+        frame, pair.x_col, pair.y_col,
         x_transform=x_transform, y_transform="identity", county_col="county",
     )
 
@@ -3997,11 +3947,7 @@ def fit_pairs(df_final, df_zip, df_zip_yearly_long, permit_years, *, max_pairs=N
                 and fit["ols_rsquared"] >= R2_OLS_POSITIVE_THRESHOLD
             )
             if fit is not None and r2_gate_passed:
-                panel = (
-                    df_zip_yearly_long if pair.geography == "zip"
-                    else _housing_yearly_panel_city(df_final, pair.x_col, pair.y_col, permit_years)
-                )
-                hierarchical = _econ_y_county_hierarchical_ci(pair, panel)
+                hierarchical = _econ_y_county_hierarchical_ci(pair, frame)
                 if hierarchical is not None:
                     fit["intercept_samples"] = hierarchical["intercept_samples"]
                     fit["slope_samples"] = hierarchical["slope_samples"]
