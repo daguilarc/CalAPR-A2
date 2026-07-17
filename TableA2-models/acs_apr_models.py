@@ -40,7 +40,7 @@ from chart_prep import (
 
 # Skim: run order is main() (banner # --- Section: main() ---), not top-to-bottom. APR repair: # PARSEFILTER. NHGIS/cache: section below.
 # Two-part / hierarchical / MLE: follow # --- Section --- banners. Data joins and prints: main() only.
-# --- Section: Chart labels & PREDICTOR_META ---
+# --- Section: Chart labels & ECON_META ---
 # ACS 5-year estimates are period estimates (pooled over each vintage’s calendar window), not point-in-time counts.
 ACS_5YR_MHI_DENOM_LABEL = "ACS 2020–2024 5-year period estimate"
 ACS_INCOME_DELTA_DISPLAY_LABEL = (
@@ -175,7 +175,7 @@ R2_DIAG_LEGACY_COLUMN_RENAMES = {
     "Zero_hurdle_slope_p": "Zero_mle_p",
 }
 # Canonical predictor metadata: single source for labels, print titles, transform and tick semantics.
-PREDICTOR_META = {
+ECON_META = {
     "zori_pct_afford": {
         "display_label": ZORI_PCT_AFFORD_X_LABEL,
         "print_title": "ZORI (Zillow Observed Rent Index) real $ change / income",
@@ -192,7 +192,7 @@ PREDICTOR_META = {
 for _zhvi_tier in ZHVI_TIERS:
     _zhvi_key = _zhvi_tier["key"]
     _zhvi_lbl = _zhvi_tier["label"]
-    PREDICTOR_META[_zhvi_tier_pct_afford_col(_zhvi_key)] = {
+    ECON_META[_zhvi_tier_pct_afford_col(_zhvi_key)] = {
         "display_label": _zhvi_pct_afford_label(_zhvi_lbl, _zhvi_tier["pca_index_name"]),
         "print_title": f"{_zhvi_tier['pca_index_name']} / MSA income",
         "tick_kind": "percent",
@@ -207,13 +207,13 @@ for _zhvi_tier in ZHVI_TIERS:
 
 # --- Section: Predictor accessors & X_COL_* derivation ---
 def _predictor_meta(x_col):
-    if x_col not in PREDICTOR_META:
+    if x_col not in ECON_META:
         raise KeyError(f"Missing predictor metadata for '{x_col}'")
-    return PREDICTOR_META[x_col]
+    return ECON_META[x_col]
 
 
 def _has_predictor_meta(x_col):
-    return x_col in PREDICTOR_META
+    return x_col in ECON_META
 
 
 def _predictor_tick_kind(x_col):
@@ -250,23 +250,23 @@ def _predictor_positive_ols_companion(x_col):
 
 # Backward-compatibility sets, derived from canonical metadata.
 X_COL_PCT_CHANGE_PREDICTORS = tuple(
-    x_col for x_col, meta in PREDICTOR_META.items()
+    x_col for x_col, meta in ECON_META.items()
     if meta.get("positive_ols_companion")
 )
 X_COL_AFFORD_DELTA_PREDICTORS = tuple(
-    x_col for x_col, meta in PREDICTOR_META.items()
+    x_col for x_col, meta in ECON_META.items()
     if (not meta["is_log_x"]) and meta["allow_negative_x"] and "afford" in x_col
 )
 X_COL_TWO_PART_LINEAR_X = frozenset(
-    x_col for x_col, meta in PREDICTOR_META.items()
+    x_col for x_col, meta in ECON_META.items()
     if (not meta["is_log_x"]) and meta["allow_negative_x"]
 )
 X_COL_PERCENT_TICK_PREDICTORS = frozenset(
-    x_col for x_col, meta in PREDICTOR_META.items()
+    x_col for x_col, meta in ECON_META.items()
     if meta["tick_kind"] == "percent"
 )
 X_COL_MSA_INCOME_PREDICTORS = frozenset(
-    x_col for x_col, meta in PREDICTOR_META.items()
+    x_col for x_col, meta in ECON_META.items()
     if meta["requires_msa"]
 )
 # Standard phase display labels for all chart text.
@@ -316,6 +316,81 @@ MODERATE_INCOME_COMPLETIONS_LABEL = (
     "Multifamily Deed-Restricted Moderate-Income Certificates of Occupancy"
 )
 ROR_LABEL_MOD_CO = MODERATE_INCOME_COMPLETIONS_LABEL
+
+
+# --- Section: HOUSING_META (single source for APR-provenance housing variables) ---
+# Bipartite model: variables split by DATA PROVENANCE, not by X/Y role — housing (APR) here,
+# econ (Zillow/Census, ECON_META above) separately. Both sets serve as both X and Y; no field
+# below encodes a predictor/outcome role. Absorbs what used to be a pair of per-geography
+# stream-prefix tuples in pages/pair_registry.py plus a hardcoded (col, label) outcome list
+# in the main ZIP-regression pipeline below: one entry per housing outcome, keyed by its
+# canonical dr_type. city_prefix/zip_prefix resolve to the actual DataFrame column at each
+# supported phase (HOUSING_Y_PHASES); either prefix may be None where no column exists for
+# that geography (e.g. "INC" has no ZIP counterpart in the source data).
+HOUSING_Y_PHASES = ("CO",)
+
+HOUSING_META = {
+    "TOTAL": {
+        "city_prefix": "TOTAL",
+        "zip_prefix": "net",
+        "display_label": "Net certificates of occupancy (all housing)",
+        "file_tag": "net",
+    },
+    "TOTAL_MF": {
+        "city_prefix": "TOTAL_MF",
+        "zip_prefix": "net_MF",
+        "display_label": ROR_LABEL_NET_MF_CO,
+        "file_tag": "net_mf",
+    },
+    "DB": {
+        "city_prefix": "DB",
+        "zip_prefix": "dr_db",
+        "display_label": ROR_LABEL_MF_DR_DB_CO,
+        "file_tag": "db",
+    },
+    "PROJ_DB": {
+        "city_prefix": "PROJ_DB",
+        "zip_prefix": "total_db",
+        "display_label": ROR_LABEL_MF_DB_CO,
+        "file_tag": "proj_db",
+    },
+    "INC": {
+        "city_prefix": "INC",
+        "zip_prefix": None,
+        "display_label": f"{LABEL_STREAM_MF_INC_DR} {PHASE_COUNT_LABEL_BY_TAG['CO']}",
+        "file_tag": "inc",
+    },
+    "PROJ_INC": {
+        "city_prefix": "PROJ_INC",
+        "zip_prefix": "total_inc",
+        "display_label": ROR_LABEL_MF_INC_CO,
+        "file_tag": "proj_inc",
+    },
+    "total_owner": {
+        "city_prefix": "total_owner",
+        "zip_prefix": "total_owner",
+        "display_label": ROR_LABEL_OWNER_CO,
+        "file_tag": "total_owner",
+    },
+    "mf_owner": {
+        "city_prefix": "mf_owner",
+        "zip_prefix": "mf_owner",
+        "display_label": ROR_LABEL_MF_OWNER_CO,
+        "file_tag": "mf_owner",
+    },
+    "VLOW_LOW": {
+        "city_prefix": "VLOW_LOW",
+        "zip_prefix": "vlow_low",
+        "display_label": ROR_LABEL_VLOW_LOW_CO,
+        "file_tag": "vlow_low",
+    },
+    "MOD": {
+        "city_prefix": "MOD",
+        "zip_prefix": "mod",
+        "display_label": ROR_LABEL_MOD_CO,
+        "file_tag": "mod",
+    },
+}
 
 
 # --- Section: Hierarchy policy, R² helpers, date checks ---
@@ -3639,6 +3714,350 @@ def fit_two_part_for_pages(df_totals, df_yearly, x_col, y_col, years, **kwargs):
     )
 
 
+# --- Section: fit_pairs (single fit pass over the bipartite pair registry) ---
+# Fit kind is keyed off which provenance set the Y variable belongs to (a single branch),
+# never a per-variable flag: housing-as-Y always runs the two-part MLE engine
+# (fit_two_part_with_ci); econ-as-Y always runs continuous OLS + county-hierarchical Bayes.
+# Both branches share one engine (fit_two_part_with_ci / hierarchical_ci_transformed) and one
+# render-metadata source (HOUSING_META / ECON_META) — no X/Y role is encoded anywhere here.
+
+@dataclass(frozen=True)
+class PairFitResult:
+    """One fitted (y_col, x_col) directed pair from iter_pairs.
+
+    chart_arrays (from chart_prep.build_chart_arrays) carries the MLE line, stationary
+    bootstrap CI band, and county-hierarchical Bayes CI band; the Bayes band is populated
+    only when r2_gate_passed (hierarchical samples are omitted from the fit otherwise).
+    y_render_meta/x_render_meta (label, file_tag, tick/log format) are resolved from
+    whichever of HOUSING_META/ECON_META the column belongs to — same lookup regardless of
+    whether the column is playing the outcome or the predictor in this pair.
+    """
+
+    geography: str
+    y_col: str
+    x_col: str
+    robustness: str
+    var_suffix: str
+    fit_kind: str  # "two_part" (housing-as-Y) or "continuous" (econ-as-Y)
+    coeffs: dict | None
+    r2_gate_passed: bool
+    r2: dict | None
+    chart_arrays: dict | None
+    y_render_meta: dict
+    x_render_meta: dict
+
+
+def _render_meta(col, geography):
+    """Label/format metadata for a column, resolved from whichever provenance set
+    (ECON_META or HOUSING_META) it belongs to. Applies identically whether col is
+    playing the predictor or the outcome role in the pair — no role is stored here."""
+    if col in ECON_META:
+        meta = ECON_META[col]
+        return {
+            "display_label": meta["display_label"],
+            "tick_kind": meta["tick_kind"],
+            "is_log_x": meta["is_log_x"],
+            "file_tag": None,
+        }
+    from pages.pair_registry import parse_city_outcome, parse_zip_outcome
+
+    parser = parse_zip_outcome if geography == "zip" else parse_city_outcome
+    dr_type, _cat_suffix = parser(col)
+    meta = HOUSING_META[dr_type]
+    return {
+        "display_label": meta["display_label"],
+        "tick_kind": None,
+        "is_log_x": None,
+        "file_tag": meta["file_tag"],
+    }
+
+
+def _fit_housing_y_city(pair, df_final, permit_years):
+    """Two-part MLE fit for a city housing-as-Y pair (x_col is the econ side)."""
+    from pages.pair_registry import parse_city_outcome
+
+    fit_mask_kind = _predictor_fit_mask_kind(pair.x_col) if _has_predictor_meta(pair.x_col) else "finite"
+    if fit_mask_kind == "finite":
+        valid_x = (
+            df_final[pair.x_col].notna()
+            & np.isfinite(np.asarray(df_final[pair.x_col].values, dtype=np.float64))
+        )
+    else:
+        valid_x = df_final[pair.x_col].notna() & (df_final[pair.x_col] > 0)
+    is_city = df_final["geography_type"] == "City"
+    mask = is_city & valid_x
+    if pair.requires_msa:
+        mask = mask & df_final["msa_income"].notna()
+    df_geo = df_final[mask].copy()
+    if pair.exclude_set:
+        df_geo = df_geo[_exclude_by_upper(df_geo["JURISDICTION"], _to_upper_set(pair.exclude_set))].copy()
+    if len(df_geo) < pair.min_jurisdictions:
+        return None
+
+    dr_type, cat_suffix = parse_city_outcome(pair.y_col)
+    cat_prefix = f"{dr_type}_{cat_suffix}"
+    yearly_cols = [y for y in permit_years if f"{cat_prefix}_{y}" in df_geo.columns]
+    if not yearly_cols:
+        return None
+
+    keep_cols = ["JURISDICTION", "county", pair.x_col, "population"]
+    df_totals = df_geo[keep_cols + [pair.y_col]].rename(columns={pair.y_col: "units"})
+    df_yearly = _melt_jurisdiction_years(
+        df_geo, keep_cols, yearly_cols,
+        lambda d, y: {"units": d[f"{cat_prefix}_{y}"]},
+    )
+    if df_yearly.empty:
+        return None
+
+    return fit_two_part_with_ci(
+        df_totals, df_yearly, pair.x_col, "units", permit_years,
+        log_x=_predictor_is_log_x(pair.x_col) if _has_predictor_meta(pair.x_col) else False,
+        county_col="county", label_col="JURISDICTION",
+        x_varies_by_year=False,
+        skip_r2_chart_gate=True,
+    )
+
+
+def _fit_housing_y_zip(pair, df_zip, df_zip_yearly_long):
+    """Two-part MLE fit (rate per 1000 pop) for a ZIP housing-as-Y pair (x_col is econ)."""
+    use_log_x = _has_predictor_meta(pair.x_col) and _predictor_is_log_x(pair.x_col)
+    if use_log_x:
+        valid_x = df_zip[pair.x_col].notna() & (df_zip[pair.x_col] > 0)
+    else:
+        valid_x = (
+            df_zip[pair.x_col].notna()
+            & np.isfinite(np.asarray(df_zip[pair.x_col].values, dtype=np.float64))
+        )
+    mask = valid_x
+    if pair.requires_msa:
+        mask = mask & df_zip["msa_income"].notna()
+    df_v = df_zip[mask].copy()
+    if pair.exclude_set:
+        df_v = df_v[_exclude_by_str(df_v["zipcode"].astype(str).str.zfill(5), pair.exclude_set)].copy()
+    if len(df_v) < pair.min_jurisdictions:
+        return None
+    pop_ok = df_v["population"].notna() & (df_v["population"] > 0)
+    if pop_ok.sum() < pair.min_jurisdictions:
+        return None
+
+    use_zips = set(df_v["zipcode"].astype(str).str.zfill(5))
+    pred_filter = (
+        (lambda zy_df: (zy_df[pair.x_col].notna() & (zy_df[pair.x_col] > 0)))
+        if use_log_x
+        else (lambda zy_df: (zy_df[pair.x_col].notna() & np.isfinite(zy_df[pair.x_col].values)))
+    )
+    zy = _filter_jurisdiction_panel(
+        df_zip_yearly_long, "zipcode", use_zips, pair.x_col, pair.y_col, predicate=pred_filter,
+    )
+    if zy is None or zy.empty:
+        return None
+    zy = zy.copy()
+    zy["y_rate"] = _rate_per_1000(zy[pair.y_col].values.astype(float), zy["population"].values.astype(float))
+    df_yearly_zip = zy[["year", "county", "population", pair.x_col, "y_rate"]].copy()
+    zip_years = sorted(df_yearly_zip["year"].dropna().unique().astype(int).tolist())
+    if not zip_years:
+        return None
+
+    df_totals_zip = df_v[["zipcode", "county", "population"]].copy().reset_index(drop=True)
+    df_totals_zip[pair.x_col] = df_v[pair.x_col].values.astype(float)
+    df_totals_zip["y_rate"] = _rate_per_1000(
+        df_v[pair.y_col].values.astype(float), df_v["population"].values.astype(float),
+    )
+    return fit_two_part_with_ci(
+        df_totals_zip, df_yearly_zip, pair.x_col, "y_rate", zip_years,
+        log_x=use_log_x, y_is_rate=True, rate_precomputed=True,
+        county_col="county", label_col="zipcode", x_varies_by_year=False,
+        skip_r2_chart_gate=True,
+    )
+
+
+def _fit_econ_y_pair(pair, frame, label_col):
+    """Continuous OLS fit for an econ-as-Y pair (x_col is the housing side)."""
+    if _has_predictor_meta(pair.x_col):
+        x_fit_mask_kind = _predictor_fit_mask_kind(pair.x_col)
+        x_transform = "log" if _predictor_is_log_x(pair.x_col) else "identity"
+    else:
+        x_fit_mask_kind = "finite"
+        x_transform = "identity"
+    if x_fit_mask_kind == "finite":
+        valid_x = (
+            frame[pair.x_col].notna()
+            & np.isfinite(np.asarray(frame[pair.x_col].values, dtype=np.float64))
+        )
+    else:
+        valid_x = frame[pair.x_col].notna() & (frame[pair.x_col] > 0)
+    valid_y = (
+        frame[pair.y_col].notna()
+        & np.isfinite(np.asarray(frame[pair.y_col].values, dtype=np.float64))
+    )
+    mask = (valid_x & valid_y).values
+    if pair.requires_msa:
+        mask = mask & frame["msa_income"].notna().values
+
+    df_v = frame[mask].copy()
+    if len(df_v) < pair.min_jurisdictions:
+        return None
+
+    x_raw = np.asarray(df_v[pair.x_col].values, dtype=np.float64)
+    y_vals = np.asarray(df_v[pair.y_col].values, dtype=np.float64)
+    x_model = np.log(np.maximum(x_raw, 1e-300)) if x_transform == "log" else x_raw
+
+    ols_fit = sm.OLS(y_vals, sm.add_constant(x_model)).fit()
+    intercept_mle = float(ols_fit.params[0])
+    slope_mle = float(ols_fit.params[1])
+
+    boot_intercept_samples, boot_slope_samples = stationary_bootstrap_ols(x_model, y_vals)
+    boot_alpha_samples = boot_beta_samples = None
+    if boot_intercept_samples is not None and boot_slope_samples is not None:
+        boot_alpha_samples = np.zeros(len(boot_intercept_samples), dtype=np.float64)
+        boot_beta_samples = np.zeros(len(boot_slope_samples), dtype=np.float64)
+
+    labels = df_v[label_col].values if label_col in df_v.columns else np.array([""] * len(df_v))
+    return {
+        "intercept_mle": intercept_mle,
+        "slope_mle": slope_mle,
+        "alpha_mle": 0.0,
+        "beta_mle": 0.0,
+        "boot_alpha_samples": boot_alpha_samples,
+        "boot_beta_samples": boot_beta_samples,
+        "boot_intercept_samples": boot_intercept_samples,
+        "boot_slope_samples": boot_slope_samples,
+        "x_data": x_raw,
+        "y_data": y_vals,
+        "jurisdictions": labels,
+        "mcfadden_r2": None,
+        "ols_rsquared": float(ols_fit.rsquared),
+        "x_transform": "log" if x_transform == "log" else None,
+    }
+
+
+def _housing_yearly_panel_city(df_final, x_col, y_col, permit_years):
+    """(JURISDICTION, county, year, x_col) panel from a city housing column's yearly
+    components, with the year-invariant econ y_col carried along on every row."""
+    from pages.pair_registry import parse_city_outcome
+
+    try:
+        dr_type, cat_suffix = parse_city_outcome(x_col)
+    except ValueError:
+        return None
+    cat_prefix = f"{dr_type}_{cat_suffix}"
+    yearly_cols = [y for y in permit_years if f"{cat_prefix}_{y}" in df_final.columns]
+    if not yearly_cols or y_col not in df_final.columns:
+        return None
+    keep_cols = ["JURISDICTION", "county", y_col]
+    panel = _melt_jurisdiction_years(
+        df_final, keep_cols, yearly_cols,
+        lambda d, y: {x_col: d[f"{cat_prefix}_{y}"]},
+    )
+    return panel if not panel.empty else None
+
+
+def _econ_y_county_hierarchical_ci(pair, panel_yearly):
+    """County-hierarchical Bayes CI for an econ-as-Y pair, on a (year, x_col, y_col,
+    county) panel. Best-effort: None if no suitable yearly panel is available."""
+    if panel_yearly is None or panel_yearly.empty:
+        return None
+    if not {"year", "county", pair.x_col, pair.y_col}.issubset(panel_yearly.columns):
+        return None
+    years = sorted(panel_yearly["year"].dropna().unique().tolist())
+    if not years:
+        return None
+    x_transform = "log" if (_has_predictor_meta(pair.x_col) and _predictor_is_log_x(pair.x_col)) else "identity"
+    return hierarchical_ci_transformed(
+        panel_yearly, "year", pair.x_col, pair.y_col, years,
+        x_transform=x_transform, y_transform="identity", county_col="county",
+    )
+
+
+def fit_pairs(df_final, df_zip, df_zip_yearly_long, permit_years, *, max_pairs=None):
+    """Single fit pass over iter_pairs(df_final, df_zip): fit each directed pair exactly once.
+
+    Fit kind is keyed off which provenance set y_col belongs to (a single branch):
+    housing-as-Y -> two-part MLE + bootstrap + county-hierarchical Bayes
+    (fit_two_part_with_ci); econ-as-Y -> continuous OLS + bootstrap, with
+    county-hierarchical Bayes (hierarchical_ci_transformed) attempted only when the R²
+    gate passes. Returns one PairFitResult per pair yielded by iter_pairs (fit is None
+    when the pair's data was insufficient to fit at all)."""
+    from pages.pair_registry import iter_pairs
+
+    results = []
+    for pair in iter_pairs(df_final, df_zip):
+        if max_pairs is not None and len(results) >= max_pairs:
+            break
+        is_econ_y = pair.y_col in ECON_META
+        fit_kind = "continuous" if is_econ_y else "two_part"
+
+        if is_econ_y:
+            frame = df_zip if pair.geography == "zip" else df_final
+            label_col = "zipcode" if pair.geography == "zip" else "JURISDICTION"
+            fit = _fit_econ_y_pair(pair, frame, label_col)
+            r2_gate_passed = bool(
+                fit is not None
+                and np.isfinite(fit.get("ols_rsquared", np.nan))
+                and fit["ols_rsquared"] >= R2_OLS_POSITIVE_THRESHOLD
+            )
+            if fit is not None and r2_gate_passed:
+                panel = (
+                    df_zip_yearly_long if pair.geography == "zip"
+                    else _housing_yearly_panel_city(df_final, pair.x_col, pair.y_col, permit_years)
+                )
+                hierarchical = _econ_y_county_hierarchical_ci(pair, panel)
+                if hierarchical is not None:
+                    fit["intercept_samples"] = hierarchical["intercept_samples"]
+                    fit["slope_samples"] = hierarchical["slope_samples"]
+        else:
+            fit = (
+                _fit_housing_y_zip(pair, df_zip, df_zip_yearly_long)
+                if pair.geography == "zip"
+                else _fit_housing_y_city(pair, df_final, permit_years)
+            )
+            r2_gate_passed = bool(
+                fit is not None
+                and fit.get("mcfadden_r2") is not None
+                and fit["mcfadden_r2"] >= R2_THRESHOLD_TWOPART_MCFADDEN_CHART
+                and np.isfinite(fit.get("ols_rsquared", np.nan))
+                and fit["ols_rsquared"] >= R2_OLS_POSITIVE_THRESHOLD
+            )
+            if fit is not None and not r2_gate_passed:
+                for key in ("intercept_samples", "slope_samples", "alpha_samples", "beta_samples"):
+                    fit[key] = None
+
+        coeffs = None
+        r2 = None
+        chart_arrays = None
+        if fit is not None:
+            coeffs = {
+                "intercept_mle": fit.get("intercept_mle"),
+                "slope_mle": fit.get("slope_mle"),
+                "alpha_mle": fit.get("alpha_mle"),
+                "beta_mle": fit.get("beta_mle"),
+            }
+            r2 = {
+                "mcfadden_r2": fit.get("mcfadden_r2"),
+                "ols_rsquared": fit.get("ols_rsquared"),
+            }
+            x_meta = _render_meta(pair.x_col, pair.geography)
+            chart_arrays = build_chart_arrays(fit, x_meta["display_label"])
+
+        results.append(
+            PairFitResult(
+                geography=pair.geography,
+                y_col=pair.y_col,
+                x_col=pair.x_col,
+                robustness=pair.robustness,
+                var_suffix=pair.var_suffix,
+                fit_kind=fit_kind,
+                coeffs=coeffs,
+                r2_gate_passed=r2_gate_passed,
+                r2=r2,
+                chart_arrays=chart_arrays,
+                y_render_meta=_render_meta(pair.y_col, pair.geography),
+                x_render_meta=_render_meta(pair.x_col, pair.geography),
+            )
+        )
+    return results
+
+
 def _log_spaced_dollar_ticks(x_lo, x_hi, max_ticks=5):
     """Ticks evenly spaced in log space, rounded to nice dollar amounts. For log-scale dollar axis (e.g. income)."""
     x_lo = max(float(x_lo), 1.0)
@@ -5431,7 +5850,7 @@ def _run_city_regressions(df_final, df_apr_db_inc, permit_years, legend_note_pay
     # Labels from canonical predictor metadata; no duplicated predictor literals.
     x_var_labels = {
         x_col: meta["display_label"]
-        for x_col, meta in PREDICTOR_META.items()
+        for x_col, meta in ECON_META.items()
         if meta["geo_applicability"] in ("city", "both")
     }
     x_var_labels["place_income"] = "City Median Household Income"
@@ -5453,7 +5872,7 @@ def _run_city_regressions(df_final, df_apr_db_inc, permit_years, legend_note_pay
             _predictor_requires_msa(x_col),
         )
         for x_col in city_file_tag
-        if x_col in PREDICTOR_META
+        if x_col in ECON_META
     ]
     # Precompute context for city-level repeated filtering.
     city_xsf_ctx = _build_city_xsf_mask_context(df_final, CITY_XSF_EXCLUDE)
@@ -5895,16 +6314,12 @@ def _run_zip_regressions(df_apr_db_inc, df_apr_all, mf_mask_all, df_county, df_c
         # Save ZIP-level dataset
         # Run two-part rate regressions (per 1000 pop) for each outcome × predictor
         # db_owner excluded: insufficient data, models disperse; total-housing outcome = net of demolitions
-        zip_outcomes = [
-            ('net_CO', 'Net certificates of occupancy (all housing)'),
-            ('net_MF_CO', ROR_LABEL_NET_MF_CO),
-            ('dr_db_CO', ROR_LABEL_MF_DR_DB_CO),
-            ('total_db_CO', ROR_LABEL_MF_DB_CO),
-            ('total_inc_CO', ROR_LABEL_MF_INC_CO),
-            ('total_owner_CO', ROR_LABEL_OWNER_CO),
-            ('mf_owner_CO', ROR_LABEL_MF_OWNER_CO),
-            ('vlow_low_CO', ROR_LABEL_VLOW_LOW_CO),
-            ('mod_CO', ROR_LABEL_MOD_CO),
+        # ZIP outcome (col, label) pairs derived from HOUSING_META (single source; see that
+        # section) — db_owner has no HOUSING_META zip_prefix, so it is absent here as before.
+        zip_outcome_specs = [
+            (f"{meta['zip_prefix']}_CO", meta["display_label"])
+            for meta in HOUSING_META.values()
+            if meta["zip_prefix"] is not None
         ]
         # (x_col, x_tag, x_axis_label, use_log_x, x_tick_dollar, require_msa) from canonical metadata.
         zip_x_tag = {
@@ -5968,7 +6383,7 @@ def _run_zip_regressions(df_apr_db_inc, df_apr_all, mf_mask_all, df_county, df_c
                 ),
             ]
             # Outcome×predictor at ZIP: MFH outcomes get zip_mfh_subvariants (baseline, _xsf, _zip_hash, _xsf_zip_hash); non-MFH get baseline only
-            for y_col, y_label in zip_outcomes:
+            for y_col, y_label in zip_outcome_specs:
                 variants = zip_mfh_subvariants if 'MF' in y_col else [(None, '', None)]
                 for exclude_zips, suffix, exclude_label in variants:
                     if exclude_zips is None:

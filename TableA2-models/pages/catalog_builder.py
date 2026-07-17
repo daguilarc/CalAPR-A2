@@ -13,7 +13,7 @@ import statsmodels.api as sm
 from acs_apr_models import (
     CHART_LEGEND_GEO_CITY,
     CHART_LEGEND_GEO_ZIP,
-    PREDICTOR_META,
+    ECON_META,
     _exclude_by_str,
     _exclude_by_upper,
     _filter_jurisdiction_panel,
@@ -77,19 +77,19 @@ def _is_construction_y_col(key: str) -> bool:
 
 
 def _x_col_transform(x_col: str) -> str:
-    if x_col in PREDICTOR_META:
+    if x_col in ECON_META:
         return "log" if _predictor_is_log_x(x_col) else "identity"
     return "identity"
 
 
 def _x_col_fit_mask_kind(x_col: str) -> str:
-    if x_col in PREDICTOR_META:
+    if x_col in ECON_META:
         return _predictor_fit_mask_kind(x_col)
     return "finite"
 
 
 def _pair_x_label(x_col: str) -> str:
-    if x_col in PREDICTOR_META:
+    if x_col in ECON_META:
         return _predictor_display_label(x_col)
     return x_col
 
@@ -298,7 +298,7 @@ def build_pages_catalog(
             break
         n_attempted += 1
 
-        if pair.y_col in PREDICTOR_META or not _is_construction_y_col(pair.y_col):
+        if pair.y_col in ECON_META or not _is_construction_y_col(pair.y_col):
             frame = df_zip if pair.geography == "zip" else df_final
             result = _fit_continuous_pair(
                 frame,
