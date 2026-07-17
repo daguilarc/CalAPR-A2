@@ -43,8 +43,6 @@ SCALE_X_PCT_AFFORD_LABELS = frozenset(
     | {ZORI_AFFORD_X_LABEL, ZORI_PCT_AFFORD_X_LABEL}
 )
 
-X_COL_INCOME_DELTA_PREDICTORS = frozenset()
-X_COL_POP_DELTA_PREDICTORS = frozenset()
 X_COL_TWO_PART_LINEAR_X = frozenset(
     {
         "zori_pct_change",
@@ -170,20 +168,13 @@ def positive_part_line_from_two_part(x_model_grid, intercept_mle, slope_mle):
 
 
 def hierarchy_re_policy(x_col, x_varies_by_year):
-    """Return (use_year_intercept_re, use_year_slope_re, use_county_re, use_sign_re) for hierarchical SMC.
+    """Return use_county_re for hierarchical SMC.
 
-    Year random effects have been removed: hierarchical models are fit on the jurisdiction
-    cross-section (one row per jurisdiction) with county (and, where applicable, sign) REs only.
-    The first two slots are retained for call-site compatibility but are always False; the
-    x_varies_by_year argument is retained but no longer affects the policy."""
-    use_county_re = not (x_col is not None and x_col in X_COL_MSA_INCOME_PREDICTORS)
-    use_sign_re = (
-        x_col is not None
-        and x_col not in X_COL_INCOME_DELTA_PREDICTORS
-        and x_col not in X_COL_POP_DELTA_PREDICTORS
-        and x_col not in X_COL_TWO_PART_LINEAR_X
-    )
-    return (False, False, use_county_re, use_sign_re)
+    Year and income-delta-stratum ("sign") random effects have been removed: hierarchical
+    models are fit on the jurisdiction cross-section (one row per jurisdiction) with county
+    REs (and population) only. The x_varies_by_year argument is retained for call-site
+    compatibility but no longer affects the policy."""
+    return not (x_col is not None and x_col in X_COL_MSA_INCOME_PREDICTORS)
 
 
 def income_x_label(income_label, acs_year_range, filter_note, is_log_x):
@@ -202,14 +193,9 @@ def income_x_label(income_label, acs_year_range, filter_note, is_log_x):
 
 
 def hierarchy_re_summary(x_col: str, x_varies_by_year: bool = False) -> dict[str, Any]:
-    use_year_i, use_year_s, use_county, use_sign = hierarchy_re_policy(x_col, x_varies_by_year)
-    year_re_available = bool(use_year_i or use_year_s)
+    use_county = hierarchy_re_policy(x_col, x_varies_by_year)
     return {
-        "year_re_available": year_re_available,
-        "use_year_intercept_re": use_year_i,
-        "use_year_slope_re": use_year_s,
         "use_county_re": use_county,
-        "use_sign_re": use_sign,
     }
 
 

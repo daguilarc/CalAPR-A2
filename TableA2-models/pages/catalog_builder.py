@@ -17,7 +17,6 @@ from acs_apr_models import (
     _exclude_by_str,
     _exclude_by_upper,
     _filter_jurisdiction_panel,
-    _hierarchy_stratum_column,
     _melt_jurisdiction_years,
     _predictor_display_label,
     _predictor_fit_mask_kind,
@@ -186,9 +185,6 @@ def _fit_city_pair(pair: PairRecord, df_final, permit_years) -> dict | None:
         return None
 
     keep_cols = ["JURISDICTION", "county", pair.x_col, "population"]
-    stratum_col = _hierarchy_stratum_column(df_geo, pair.x_col)
-    if stratum_col and stratum_col in df_geo.columns:
-        keep_cols.append(stratum_col)
     df_totals = df_geo[keep_cols + [pair.y_col]].rename(columns={pair.y_col: "units"})
     df_yearly = _melt_jurisdiction_years(
         df_geo,
