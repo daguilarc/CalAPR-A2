@@ -26,7 +26,6 @@ import statsmodels.api as sm
 from statsmodels.tools.sm_exceptions import ConvergenceWarning, PerfectSeparationWarning
 from arch.bootstrap import StationaryBootstrap
 from tqdm import tqdm
-from sklearn.decomposition import PCA
 
 from chart_prep import (
     build_chart_arrays,
@@ -52,12 +51,6 @@ ACS_POPULATION_DELTA_DISPLAY_LABEL = (
     "% change in place population between ACS 5-year period estimates (2014–2018 vs 2020–2024, same geography)\n"
     "100 × (pop 2020–2024 − pop 2014–2018) / pop 2014–2018"
 )
-ACS_INCOME_DELTA_PCA_FEATURE_LABEL = (
-    "% change in real median household income (ACS 2014–2018 vs 2020–2024)"
-)
-ACS_POPULATION_DELTA_PCA_FEATURE_LABEL = (
-    "% change in place population (ACS 2014–2018 vs 2020–2024)"
-)
 # ZHVI tier registry: single source for file stems, column names, labels, and chart tags.
 ZHVI_TIERS = (
     {
@@ -73,7 +66,6 @@ ZHVI_TIERS = (
         "file_stem": "zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month",
     },
 )
-ZORI_PCA_INDEX_NAME = "Zillow Observed Rent Index"
 
 
 def _zhvi_pct_label(tier_label):
@@ -96,16 +88,6 @@ def _zhvi_pct_afford_label(tier_label, pca_index_name=None):
         f"Δ{index_name} / MSA median household income (%)\n"
         "Real 2024 dollars"
     )
-
-
-def _pca_ev1_outcome_short_label(predictor_col):
-    """Short PCA pie/title/diagnostics label: full index name / MSA income (no 'affordability change')."""
-    if predictor_col == "zori_pct_afford":
-        return f"{ZORI_PCA_INDEX_NAME} / MSA income"
-    for tier in ZHVI_TIERS:
-        if predictor_col == _zhvi_tier_pct_afford_col(tier["key"]):
-            return f"{tier['pca_index_name']} / MSA income"
-    return str(predictor_col)
 
 
 def _zhvi_tier_pct_col(key):
@@ -385,12 +367,6 @@ ROR_LABEL_MF_DR_DB_BP = "Multifamily Deed-Restricted Density-Bonus Building Perm
 ROR_LABEL_MF_DB_BP = "Multifamily Density-Bonus Building Permits"
 ROR_LABEL_OWNER_BP = "Owner Building Permits"
 ROR_LABEL_MF_OWNER_BP = "Multifamily Owner Building Permits"
-
-# EV1 composite / print banner (replaces ad hoc “MF CO” shorthand).
-EV1_STANDARDIZED_INPUT_CAPTION = (
-    "Multifamily net certificates of occupancy (per 1k pop) + income and population % change "
-    "(ACS 5-year period estimates, 2014–2018 vs 2020–2024)"
-)
 
 # Moderate-income CO sum: deed-restricted MOD_INCOME_DR only (excludes NDR).
 MODERATE_INCOME_COMPLETIONS_LABEL = (
@@ -1249,7 +1225,6 @@ def load_a2_csv(filepath, usecols=None):
 
 
 # --- Section: NHGIS paths, suppression codes ---
-RUN_PCA_ONLY = os.environ.get("ACS_APR_RUN_PCA_ONLY", "").strip().lower() in ("1", "true", "yes")
 PAGES_BUILD = os.environ.get("PAGES_BUILD", "").strip().lower() in ("1", "true", "yes")
 PAGES_SKIP_HIERARCHICAL = os.environ.get("PAGES_SKIP_HIERARCHICAL", "").strip().lower() in ("1", "true", "yes")
 PAGES_RANDOM_SEED = int(os.environ.get("PAGES_RANDOM_SEED", "20240618"))
@@ -2394,24 +2369,6 @@ def _append_two_part_r2_diagnostics_row(
     return ols_r2
 
 
-def _append_pca_ev1_r2_diagnostics_row(r2_list, outcome_label, geo_tag, ols_diag):
-    """Append one PCA EV1 OLS row to unified r2_diagnostics schema (R2_DIAG_COLUMNS order)."""
-    geography = GEOGRAPHY_CITY if geo_tag == "city" else GEOGRAPHY_ZIP
-    r2_list.append((
-        f"{outcome_label} vs EV1 PC1",
-        geography,
-        np.nan,
-        float(ols_diag["r2"]),
-        float(ols_diag["coef"]),
-        float(ols_diag["t_stat"]),
-        float(ols_diag["p_value"]),
-        np.nan,
-        np.nan,
-        np.nan,
-        np.nan,
-    ))
-
-
 def _affordable_dr_only_colnames(tier_cols):
     """Income-tier columns: VLOW/LOW/MOD *_DR only (excludes *_NDR, ABOVE_MOD, EXTR_LOW)."""
     return [c for c in tier_cols if "_DR" in c and "_NDR" not in c]
@@ -3135,589 +3092,6 @@ def permit_rate(df, permit_years, permit_cols, rate_cols):
     return df
 
 
-# --- Section: EV1 PCA ---
-# EV1 PCA: multifamily net CO counts (per 1k pop) + income/population % change only (CO = certificate of occupancy).
-# Excludes BP streams and standalone demolition rates.
-_EV1_PCA_CITY_CO_COUNT_COLS = (
-    "TOTAL_MF_CO_total",
-    "DB_CO_total",
-    "PROJ_INC_CO_total",
-    "mf_owner_CO_total",
-    "VLOW_LOW_CO_total",
-    "MOD_CO_total",
-)
-_EV1_PCA_ZIP_CO_COUNT_COLS = (
-    "net_MF_CO",
-    "dr_db_CO",
-    "total_inc_CO",
-    "mf_owner_CO",
-    "vlow_low_CO",
-    "mod_CO",
-)
-EV1_PCA_DELTA_COLS = ("income_delta_pct_change", "population_delta_pct_change")
-
-_EV1_PCA_FEATURE_DISPLAY_NAMES = {
-    "TOTAL_MF_CO_total": "Net multifamily certificates of occupancy (per 1k pop)",
-    "DB_CO_total": "Multifamily deed-restricted density-bonus certificates of occupancy (per 1k pop)",
-    "PROJ_INC_CO_total": "Multifamily non-bonus inclusionary certificates of occupancy (per 1k pop)",
-    "total_owner_CO_total": "For-sale owner certificates of occupancy (per 1k pop)",
-    "mf_owner_CO_total": "Multifamily for-sale certificates of occupancy (per 1k pop)",
-    "VLOW_LOW_CO_total": "Very low + low income certificates of occupancy (per 1k pop)",
-    "MOD_CO_total": f"{MODERATE_INCOME_COMPLETIONS_LABEL} (per 1k pop)",
-    "net_MF_CO": "Net multifamily certificates of occupancy (per 1k pop)",
-    "dr_db_CO": "Multifamily deed-restricted density-bonus certificates of occupancy (per 1k pop)",
-    "total_inc_CO": "Multifamily non-bonus inclusionary certificates of occupancy (per 1k pop)",
-    "total_owner_CO": "For-sale owner certificates of occupancy (per 1k pop)",
-    "mf_owner_CO": "Multifamily for-sale certificates of occupancy (per 1k pop)",
-    "vlow_low_CO": "Very low + low income certificates of occupancy (per 1k pop)",
-    "mod_CO": f"{MODERATE_INCOME_COMPLETIONS_LABEL} (per 1k pop)",
-    "income_delta_pct_change": ACS_INCOME_DELTA_PCA_FEATURE_LABEL,
-    "population_delta_pct_change": ACS_POPULATION_DELTA_PCA_FEATURE_LABEL,
-}
-
-
-def _mf_pca_rate_column_name(count_col):
-    return f"mf_pca_r__{count_col}"
-
-
-def _ev1_pca_co_count_cols(geo_tag):
-    if geo_tag == "city":
-        return _EV1_PCA_CITY_CO_COUNT_COLS
-    if geo_tag == "zip":
-        return _EV1_PCA_ZIP_CO_COUNT_COLS
-    raise ValueError(f"unknown geo_tag {geo_tag!r}")
-
-
-def _ev1_pca_expected_ordered_feature_cols(geo_tag):
-    rate_names = tuple(_mf_pca_rate_column_name(c) for c in _ev1_pca_co_count_cols(geo_tag))
-    return rate_names + EV1_PCA_DELTA_COLS
-
-
-def _ev1_pca_feature_display_name(internal_name):
-    return _EV1_PCA_FEATURE_DISPLAY_NAMES.get(str(internal_name), str(internal_name))
-
-
-def _ev1_pca_attach_feature_columns(df, geo_tag):
-    """Build EV1 PCA feature columns: CO net rates (per 1k pop) + two ACS delta predictors. Mutates ``df`` in place.
-
-    Contract: fixed ordered feature set per ``geo_tag``; fail fast if required source columns are missing.
-    """
-    co_counts = _ev1_pca_co_count_cols(geo_tag)
-    missing_co = [c for c in co_counts if c not in df.columns]
-    if missing_co:
-        raise ValueError(f"{geo_tag}: EV1 PCA missing required CO count columns {missing_co}")
-    missing_delta = [c for c in EV1_PCA_DELTA_COLS if c not in df.columns]
-    if missing_delta:
-        raise ValueError(f"{geo_tag}: EV1 PCA missing required delta columns {missing_delta}")
-    if "population" not in df.columns:
-        raise ValueError(f"{geo_tag}: population column required for EV1 PCA CO rates")
-    pop = pd.to_numeric(df["population"], errors="coerce").to_numpy(dtype=np.float64)
-    feature_cols = []
-    for c in co_counts:
-        cnt = pd.to_numeric(df[c], errors="coerce").to_numpy(dtype=np.float64)
-        rname = _mf_pca_rate_column_name(c)
-        df[rname] = np.where(np.isfinite(pop) & (pop > 0), (cnt / pop) * 1000.0, np.nan)
-        feature_cols.append(rname)
-    for dcol in EV1_PCA_DELTA_COLS:
-        df[dcol] = pd.to_numeric(df[dcol], errors="coerce")
-        feature_cols.append(dcol)
-    expected = _ev1_pca_expected_ordered_feature_cols(geo_tag)
-    if tuple(feature_cols) != expected:
-        raise ValueError(f"{geo_tag}: EV1 PCA internal feature column order mismatch")
-    for rname in feature_cols[: len(co_counts)]:
-        if not pd.api.types.is_numeric_dtype(df[rname]):
-            raise ValueError(f"{geo_tag}: EV1 PCA rate column {rname} is not numeric after conversion")
-    for dcol in EV1_PCA_DELTA_COLS:
-        if not pd.api.types.is_numeric_dtype(df[dcol]):
-            raise ValueError(f"{geo_tag}: EV1 PCA delta column {dcol} is not numeric after conversion")
-    return list(feature_cols)
-
-
-def _prepare_ev1_pca_data(df, feature_cols, predictor_col, geo_tag, label_col=None):
-    """Build standardized feature matrix, EV1 loadings/scores, PC1 variance share, filtered predictor, geo labels."""
-    expected = list(_ev1_pca_expected_ordered_feature_cols(geo_tag))
-    if list(feature_cols) != expected:
-        raise ValueError(
-            f"{geo_tag}:{predictor_col} EV1 PCA feature set must match contract (got {feature_cols!r})"
-        )
-    required_cols = list(dict.fromkeys(feature_cols + [predictor_col]))
-    missing = [c for c in required_cols if c not in df.columns]
-    if missing:
-        raise ValueError(f"{geo_tag}:{predictor_col} missing columns {missing}")
-    if label_col is not None and label_col not in df.columns:
-        raise ValueError(f"{geo_tag}:{predictor_col} missing label column {label_col}")
-    numeric = df[required_cols].apply(pd.to_numeric, errors="coerce")
-    finite_mask = np.isfinite(numeric.to_numpy(dtype=np.float64)).all(axis=1)
-    prepared = numeric.loc[finite_mask, required_cols].copy()
-    n_after_finite = int(len(prepared))
-    if n_after_finite < 20:
-        raise ValueError(f"{geo_tag}:{predictor_col} insufficient rows after finite filter ({n_after_finite})")
-    x_mat = prepared[feature_cols].to_numpy(dtype=np.float64)
-    x_mean = x_mat.mean(axis=0)
-    x_std = x_mat.std(axis=0)
-    nonzero = x_std > 0
-    if int(nonzero.sum()) < 2:
-        raise ValueError(
-            f"{geo_tag}:{predictor_col} fewer than 2 EV1 PCA features with positive variance after row filter"
-        )
-    x_keep = x_mat[:, nonzero]
-    std_keep = x_std[nonzero]
-    x_scaled = (x_keep - x_mean[nonzero]) / std_keep
-    if x_scaled.shape[1] < 2:
-        raise ValueError(f"{geo_tag}:{predictor_col} scaled EV1 feature matrix has fewer than 2 columns")
-    pca = PCA(n_components=1, whiten=False)
-    pca.fit(x_scaled)
-    ratio0 = float(pca.explained_variance_ratio_[0])
-    if not np.isfinite(ratio0):
-        raise ValueError(f"{geo_tag}:{predictor_col} PCA explained_variance_ratio_[0] is not finite")
-    ev1_var_explained_pct = 100.0 * ratio0
-    if ev1_var_explained_pct < 0.0 or ev1_var_explained_pct > 100.0:
-        raise ValueError(
-            f"{geo_tag}:{predictor_col} invalid ev1 variance explained pct {ev1_var_explained_pct}"
-        )
-    loadings = np.asarray(pca.components_[0], dtype=np.float64)
-    abs_sum = float(np.abs(loadings).sum())
-    if not np.isfinite(abs_sum) or abs_sum <= 0.0:
-        raise ValueError(f"{geo_tag}:{predictor_col} invalid EV1 loading normalization denominator")
-    scores = np.asarray(pca.transform(x_scaled)[:, 0], dtype=np.float64)
-    if not np.isfinite(scores).all():
-        raise ValueError(f"{geo_tag}:{predictor_col} EV1 scores contain non-finite values")
-    dropped_zero_var = [
-        (c.replace("mf_pca_r__", "", 1) if str(c).startswith("mf_pca_r__") else c)
-        for c, k in zip(feature_cols, nonzero.tolist())
-        if not k
-    ]
-    kept_raw = [c for c, k in zip(feature_cols, nonzero.tolist()) if k]
-    kept_features = [
-        c.replace("mf_pca_r__", "", 1) if str(c).startswith("mf_pca_r__") else c for c in kept_raw
-    ]
-    shares = 100.0 * np.abs(loadings) / abs_sum
-    composition = pd.DataFrame({
-        "feature": kept_features,
-        "loading": loadings,
-        "share_pct": shares,
-    }).sort_values("share_pct", ascending=False).reset_index(drop=True)
-    share_sum = float(composition["share_pct"].sum())
-    if not np.isfinite(share_sum) or not np.isclose(share_sum, 100.0, atol=1e-4):
-        raise ValueError(f"{geo_tag}:{predictor_col} EV1 composition shares sum to {share_sum}, expected 100")
-    if label_col is None:
-        geo_labels = None
-    else:
-        lbl = df.loc[prepared.index, label_col].astype(str).str.strip()
-        if geo_tag == "zip":
-            lbl = lbl.str.replace(r"\D", "", regex=True).str.zfill(5)
-        geo_labels = lbl.to_numpy()
-    return (
-        prepared[predictor_col].to_numpy(dtype=np.float64),
-        scores,
-        composition,
-        ev1_var_explained_pct,
-        geo_labels,
-        dropped_zero_var,
-        n_after_finite,
-    )
-
-
-def _ev1_pca_ols_ci_band_legend_label(ci_method):
-    """Legend label for PCA EV1 OLS band; must match ``ci_method`` from _ev1_ols_bootstrap_diagnostics_and_band."""
-    if ci_method == "stationary_bootstrap_mc":
-        return "95% CI + stationary bootstrap"
-    elif ci_method == "ols_analytic_fallback":
-        return "95% Confidence Interval (bootstrap unavailable)"
-    else:
-        raise ValueError(ci_method)
-
-
-def _ev1_variance_captions(ev1_var_explained_pct):
-    """Return pie subtitle line and OLS x-axis label sharing one formatted percent string."""
-    pct_str = f"{ev1_var_explained_pct:.1f}"
-    pie_line2 = f"PC1 variance explained: {pct_str}%"
-    ols_xlabel = f"Principal Component 1 composite score ({pct_str}% variance explained)"
-    return pie_line2, ols_xlabel
-
-
-def _non_overlapping_side_y_positions(raw_y, lower=-1.08, upper=1.08, min_gap=0.13):
-    """Monotone y-slot allocation to avoid same-side callout line crossings."""
-    if not raw_y:
-        return []
-    y_sorted = sorted((float(y) for y in raw_y), reverse=True)
-    placed = []
-    prev = upper + min_gap
-    for y in y_sorted:
-        y_slot = min(y, prev - min_gap, upper)
-        placed.append(y_slot)
-        prev = y_slot
-    if placed and placed[-1] < lower:
-        shift = min(lower - placed[-1], upper - placed[0])
-        if shift > 0:
-            placed = [y + shift for y in placed]
-    return placed
-
-
-def _place_ev1_pie_side_annotations(ax, side_entries, sign, dy=0.13):
-    """Place pie callouts for one side (left/right) using non-overlapping straight leaders."""
-    if not side_entries:
-        return
-    side_entries.sort(key=lambda t: t[1], reverse=True)
-    target_y_raw = [1.08 * entry[1] for entry in side_entries]
-    target_y = _non_overlapping_side_y_positions(target_y_raw, min_gap=dy)
-    text_x = 1.24 * sign
-    ha = "left" if sign > 0 else "right"
-    for entry, text_y in zip(side_entries, target_y):
-        xc, yc, pct = entry
-        ax.annotate(
-            f"{pct:.1f}%",
-            xy=(xc, yc),
-            xytext=(text_x, text_y),
-            textcoords="data",
-            ha=ha,
-            va="center",
-            fontsize=13,
-            arrowprops=dict(arrowstyle="-", color="black", lw=0.8, connectionstyle="arc3,rad=0.0"),
-        )
-
-
-def _plot_ev1_pie_annotations_staggered(ax, shares, wedges):
-    """Side-based EV1 pie labels with vertical staggering to reduce collisions.
-    ``shares`` is the per-wedge percentage array aligned with ``wedges`` (reused from the pie call)."""
-    right, left = [], []
-    for idx, wedge in enumerate(wedges):
-        rad = np.deg2rad((wedge.theta1 + wedge.theta2) / 2.0)
-        xc = float(np.cos(rad))
-        entry = (xc, float(np.sin(rad)), float(shares[idx]))
-        (right if xc >= 0.0 else left).append(entry)
-    _place_ev1_pie_side_annotations(ax, right, 1)
-    _place_ev1_pie_side_annotations(ax, left, -1)
-
-
-def _plot_ev1_composition_pie(composition_df, output_path, title):
-    """Plot EV1 loading composition pie chart."""
-    total_share = float(composition_df["share_pct"].sum())
-    if not np.isfinite(total_share) or not np.isclose(total_share, 100.0, atol=1e-6):
-        raise ValueError(f"Pie normalization failed: shares sum to {total_share}")
-    setup_chart_style()
-    # Portrait orientation improves callout readability for EV1 pie labels.
-    fig, ax = plt.subplots(figsize=(8.2, 10.2))
-    shares = composition_df["share_pct"].to_numpy(dtype=np.float64)
-    wedges, _ = ax.pie(shares, labels=None, startangle=90)
-    _plot_ev1_pie_annotations_staggered(ax, shares, wedges)
-    legend_labels = [_ev1_pca_feature_display_name(f) for f in composition_df["feature"]]
-    legend_handles = [Patch(facecolor=w.get_facecolor(), edgecolor="none") for w in wedges]
-    ax.legend(
-        legend_handles,
-        legend_labels,
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.02),
-        ncol=1,
-        fontsize=11,
-        frameon=False,
-        handlelength=1.0,
-        handleheight=1.0,
-        labelspacing=0.6,
-        borderaxespad=0.0,
-    )
-    fig.subplots_adjust(top=0.88, left=0.06, right=0.94, bottom=0.28)
-    ax.set_title(title, pad=26)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-    print(f"  Saved: {output_path.name}")
-
-
-def _ev1_ols_bootstrap_diagnostics_and_band(
-    ev1_scores, predictor_vals, geo_tag, predictor_col, n_boot=10000, min_success=100,
-):
-    """OLS fit, stationary-bootstrap pointwise band on the fitted line, and slope CI. Single bootstrap draw."""
-    x = np.asarray(ev1_scores, dtype=np.float64)
-    y = np.asarray(predictor_vals, dtype=np.float64)
-    x_std = np.nanstd(x)
-    if not np.isfinite(x_std) or x_std == 0.0:
-        raise ValueError(f"{geo_tag}:{predictor_col} EV1 composite has zero or invalid variance")
-    fit = sm.OLS(y, sm.add_constant(x)).fit()
-    x_line = np.linspace(float(np.nanmin(x)), float(np.nanmax(x)), 200)
-    y_line = np.asarray(fit.params[0] + fit.params[1] * x_line, dtype=np.float64)
-    bi, bs = stationary_bootstrap_ols(x, y, n_boot=n_boot, min_success=min_success)
-    if bi is not None and len(bi) >= min_success:
-        curves = bi[:, np.newaxis] + bs[:, np.newaxis] * x_line[np.newaxis, :]
-        y_lo = np.percentile(curves, 2.5, axis=0)
-        y_hi = np.percentile(curves, 97.5, axis=0)
-        ci_method = "stationary_bootstrap_mc"
-        coef_ci_low = float(np.percentile(bs, 2.5))
-        coef_ci_high = float(np.percentile(bs, 97.5))
-    else:
-        pred = fit.get_prediction(sm.add_constant(x_line)).summary_frame(alpha=0.05)
-        y_lo = pred["mean_ci_lower"].to_numpy(dtype=np.float64)
-        y_hi = pred["mean_ci_upper"].to_numpy(dtype=np.float64)
-        ci_method = "ols_analytic_fallback"
-        ci_tab = fit.conf_int(alpha=0.05)
-        coef_ci_low = float(ci_tab[1, 0])
-        coef_ci_high = float(ci_tab[1, 1])
-    diagnostics = {
-        "geography": geo_tag,
-        "predictor": predictor_col,
-        "n_obs": int(len(y)),
-        "coef": float(fit.params[1]),
-        "coef_ci_low_95": coef_ci_low,
-        "coef_ci_high_95": coef_ci_high,
-        "p_value": float(fit.pvalues[1]),
-        "t_stat": float(fit.tvalues[1]),
-        "r2": float(fit.rsquared),
-        "ci_method": ci_method,
-    }
-    return x_line, y_line, y_lo, y_hi, diagnostics
-
-
-def _annotate_pca_ev1_ols_scatter(ax, fig, x, y, labels, also_annotate_second_max_x):
-    """Top-N-by-y labels plus optional second-largest-x point (parity with ``plot_two_part_chart``)."""
-    if labels is None or len(labels) == 0:
-        return
-    cleanup = lambda s: str(s)
-    ann_list = annotate_top_n_by_y(ax, x, y, labels, n=3, label_cleanup=cleanup)
-    if also_annotate_second_max_x and len(x) >= 2:
-        top3_y_idx = set(np.argsort(y)[::-1][:3])
-        idx_2nd_x = int(np.argsort(x)[-2])
-        if idx_2nd_x not in top3_y_idx:
-            ann2 = ax.annotate(
-                cleanup(labels[idx_2nd_x]),
-                (x[idx_2nd_x], y[idx_2nd_x]),
-                fontsize=7,
-                alpha=0.8,
-                xytext=_xytext_keep_inside(
-                    ax, x[idx_2nd_x], y[idx_2nd_x], label=cleanup(labels[idx_2nd_x]),
-                ),
-                textcoords="offset points",
-                annotation_clip=True,
-            )
-            ann_list.append(ann2)
-    if ann_list:
-        _resolve_scatter_label_overlaps(ax, fig, ann_list)
-
-
-def _plot_ev1_ols_chart(
-    ev1_scores,
-    affordability_vals,
-    output_path,
-    title,
-    y_label,
-    x_label,
-    x_line,
-    y_line,
-    y_ci_lo,
-    y_ci_hi,
-    geo_labels=None,
-    data_label=None,
-    also_annotate_second_max_x=True,
-    predictor_col=None,
-    *,
-    ci_method,
-    ols_coef=None,
-    ols_r2=None,
-):
-    """Plot rotated spec: affordability (Y) ~ EV1 (X) with OLS line, 95% CI band, tight axis limits, optional geo labels."""
-    x = np.asarray(ev1_scores, dtype=np.float64)
-    y = np.asarray(affordability_vals, dtype=np.float64)
-    x_line = np.asarray(x_line, dtype=np.float64)
-    y_line = np.asarray(y_line, dtype=np.float64)
-    y_ci_lo = np.asarray(y_ci_lo, dtype=np.float64)
-    y_ci_hi = np.asarray(y_ci_hi, dtype=np.float64)
-    setup_chart_style()
-    fig, ax = plt.subplots(figsize=(10, 8))
-    lab = data_label or "Observations"
-    ax.scatter(
-        x, y, color="#ED7D31", alpha=0.6, s=40, edgecolors="none",
-        label=f"{lab} (n={len(x)})",
-    )
-    beta_str = _format_beta_for_legend(ols_coef)
-    line_handle, = ax.plot(
-        x_line, y_line, color="#4472C4", linewidth=2,
-        label=f"OLS fitted line\nβ = {beta_str}",
-    )
-    ci_legend = _ev1_pca_ols_ci_band_legend_label(ci_method)
-    ax.fill_between(x_line, y_ci_lo, y_ci_hi, color=CI_COLOR_CYAN, alpha=0.3, label=ci_legend)
-    _annotate_pca_ev1_ols_scatter(ax, fig, x, y, geo_labels, also_annotate_second_max_x)
-    x_lo = float(min(np.nanmin(x), np.nanmin(x_line)))
-    x_hi = float(max(np.nanmax(x), np.nanmax(x_line)))
-    xr = x_hi - x_lo
-    pad_x = 1e-9 if xr <= 0 else max(1e-9, 0.002 * xr)
-    ax.set_xlim(x_lo - pad_x, x_hi + pad_x)
-    y_sc_min, y_sc_max = float(np.nanmin(y)), float(np.nanmax(y))
-    y_band_min = float(np.nanmin(np.concatenate([y_ci_lo, y])))
-    y_band_max = float(np.nanmax(np.concatenate([y_ci_hi, y])))
-    y_lo = min(y_sc_min, y_band_min, float(np.nanmin(y_line)))
-    y_hi = max(y_sc_max, y_band_max, float(np.nanmax(y_line)))
-    yr = y_hi - y_lo
-    pad_y = 1e-9 if yr <= 0 else max(1e-9, 0.002 * yr)
-    ax.set_ylim(y_lo - pad_y, y_hi + pad_y)
-    ax.set_xlabel(x_label)
-    ax.set_ylabel(y_label)
-    # pct_afford_{tier} / zori_pct_afford are dollar change / ref_income (0–1 scale), not 0–100;
-    # integer "%" formatting rounded every tick to 0%.
-    if predictor_col is not None and predictor_col in X_COL_AFFORD_DELTA_PREDICTORS:
-        ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=1))
-    ax.set_title(title)
-    r2_handle = None
-    if ols_r2 is not None and np.isfinite(ols_r2):
-        r2_str = f"{ols_r2:.2e}" if abs(ols_r2) < 0.001 else f"{ols_r2:.3f}"
-        r2_handle, = ax.plot([], [], " ", label=f"R² = {r2_str}")
-    handles = [line_handle]
-    if r2_handle is not None:
-        handles.append(r2_handle)
-    handles.extend(ax.collections)
-    ax.legend(handles=handles, loc="best", frameon=False)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-    print(f"  Saved: {output_path.name}")
-
-
-class PcaEv1Runner:
-    """Orchestrates EV1 PCA/OLS specs while preserving output contracts."""
-
-    def __init__(self, city_output_dir, zip_output_dir, diagnostics_output_dir, r2_diagnostics=None):
-        self.city_output_dir = city_output_dir
-        self.zip_output_dir = zip_output_dir
-        self.diagnostics_output_dir = diagnostics_output_dir
-        self.r2_diagnostics = r2_diagnostics
-        pca_predictors = [_zhvi_tier_pct_afford_col(t["key"]) for t in ZHVI_TIERS] + ["zori_pct_afford"]
-        self.y_labels = {col: _predictor_display_label(col) for col in pca_predictors}
-        self.short_outcome_labels = {col: _pca_ev1_outcome_short_label(col) for col in pca_predictors}
-
-    def build_specs(self, df_city, df_zip):
-        specs = [
-            (
-                "city",
-                df_city,
-                _zhvi_tier_pct_afford_col(t["key"]),
-                "ZHVI",
-                f"pca_ev1_pie_city_pct_afford_{t['key']}.png",
-                f"pca_ev1_ols_city_pct_afford_{t['key']}.png",
-            )
-            for t in ZHVI_TIERS
-        ]
-        specs.append(
-            (
-                "city",
-                df_city,
-                "zori_pct_afford",
-                "ZORI",
-                "pca_ev1_pie_city_zori_pct_afford.png",
-                "pca_ev1_ols_city_zori_pct_afford.png",
-            )
-        )
-        return specs
-
-    def run_spec(self, geo_tag, df_geo, predictor_col, zillow_family, pie_name, ols_name):
-        if df_geo is None or len(df_geo) == 0:
-            print(f"  Skipping {geo_tag}:{predictor_col} (no data)")
-            return None
-        label_col = "JURISDICTION" if geo_tag == "city" else "zipcode"
-        if label_col not in df_geo.columns:
-            print(f"  Skipping {geo_tag}:{predictor_col} (missing {label_col} for chart labels)")
-            return None
-        df_w = df_geo.copy()
-        n_rows_before_ev1 = int(len(df_w))
-        try:
-            feature_cols = _ev1_pca_attach_feature_columns(df_w, geo_tag)
-        except ValueError as e:
-            print(f"  Skipping {geo_tag}:{predictor_col} ({e})")
-            return None
-        n_co_rates = len(_ev1_pca_co_count_cols(geo_tag))
-        if len(feature_cols) != n_co_rates + len(EV1_PCA_DELTA_COLS):
-            print(f"  Skipping {geo_tag}:{predictor_col} (unexpected EV1 feature column count)")
-            return None
-        try:
-            (
-                affordability_vals,
-                ev1_scores,
-                composition,
-                ev1_var_explained_pct,
-                geo_labels,
-                dropped_zero_var,
-                n_after_finite,
-            ) = _prepare_ev1_pca_data(
-                df_w, feature_cols, predictor_col, geo_tag, label_col=label_col,
-            )
-        except ValueError as e:
-            print(f"  Skipping {geo_tag}:{predictor_col} ({e})")
-            return None
-        n_dropped_nonfinite = n_rows_before_ev1 - n_after_finite
-        print(
-            f"  EV1 PCA rows: {n_after_finite}/{n_rows_before_ev1} finite "
-            f"({n_dropped_nonfinite} dropped non-finite); [{geo_tag}:{predictor_col}]"
-        )
-        if dropped_zero_var:
-            print(
-                f"  EV1 PCA zero-variance excluded before PCA: {', '.join(dropped_zero_var)} "
-                f"[{geo_tag}:{predictor_col}]"
-            )
-        pie_line2, ols_xlabel = _ev1_variance_captions(ev1_var_explained_pct)
-        geo_name = "City" if geo_tag == "city" else "ZIP"
-        outcome_label = self.short_outcome_labels.get(predictor_col, str(predictor_col))
-        pie_title = (
-            f"{geo_name} — {outcome_label}\n"
-            f"EV1 PC1 composition · {pie_line2}"
-        )
-        chart_output_dir = self.city_output_dir if geo_tag == "city" else self.zip_output_dir
-        _plot_ev1_composition_pie(composition, chart_output_dir / pie_name, pie_title)
-        data_label = CHART_LEGEND_GEO_CITY if geo_tag == "city" else CHART_LEGEND_GEO_ZIP
-        ols_title = f"{geo_name} — {outcome_label} vs EV1"
-        try:
-            x_line, y_line, y_ci_lo, y_ci_hi, ols_diag = _ev1_ols_bootstrap_diagnostics_and_band(
-                ev1_scores, affordability_vals, geo_tag, predictor_col,
-            )
-        except ValueError as e:
-            print(f"  Skipping {geo_tag}:{predictor_col} OLS/CI ({e})")
-            return None
-        _plot_ev1_ols_chart(
-            ev1_scores,
-            affordability_vals,
-            chart_output_dir / ols_name,
-            ols_title,
-            self.y_labels.get(predictor_col, predictor_col),
-            ols_xlabel,
-            x_line,
-            y_line,
-            y_ci_lo,
-            y_ci_hi,
-            geo_labels=geo_labels,
-            data_label=data_label,
-            also_annotate_second_max_x=True,
-            predictor_col=predictor_col,
-            ci_method=ols_diag["ci_method"],
-            ols_coef=ols_diag["coef"],
-            ols_r2=ols_diag["r2"],
-        )
-        if self.r2_diagnostics is not None:
-            _append_pca_ev1_r2_diagnostics_row(
-                self.r2_diagnostics, outcome_label, geo_tag, ols_diag,
-            )
-        return True
-
-    def emit_outputs(self, n_ok):
-        if n_ok:
-            print(
-                f"  EV1 PCA diagnostics rows appended: {n_ok} "
-                "(city-only build_specs, max 3)"
-            )
-        else:
-            print("  PCA/EV1/OLS: no strata produced output")
-        return None
-
-    def run_all(self, df_city, df_zip):
-        n_ok = 0
-        for geo_tag, df_geo, predictor_col, zillow_family, pie_name, ols_name in self.build_specs(df_city, df_zip):
-            if self.run_spec(geo_tag, df_geo, predictor_col, zillow_family, pie_name, ols_name):
-                n_ok += 1
-        return self.emit_outputs(n_ok)
-
-
-def run_pca_ev1_affordability(
-    df_city, df_zip, city_output_dir, zip_output_dir, diagnostics_output_dir, r2_diagnostics=None,
-):
-    """City-only PCA on standardized EV1 inputs; OLS affordability ~ EV1."""
-    return PcaEv1Runner(
-        city_output_dir, zip_output_dir, diagnostics_output_dir, r2_diagnostics=r2_diagnostics,
-    ).run_all(df_city, df_zip)
-
-
 # --- Section: Permits aggregate, MLE two-part, hierarchical Bayes, regressions ---
 def agg_permits(df_hcd, row_filter, permit_years, value_col="units_BP", prefix="net_permits", group_col="JURIS_CLEAN"):
     """Aggregate permit/CO/demolition counts by group_col and year, returning dataframe ready for merge.
@@ -4238,8 +3612,6 @@ def fit_two_part_with_ci(df_totals, df_yearly, x_col, y_col, years, log_x=True, 
     label_col: column for chart dot labels (e.g. 'JURISDICTION' for cities, 'zipcode' for ZIPs). Falls back to county_col.
     For x_col in X_COL_TWO_PART_LINEAR_X (% change and dollar-change/income) we use raw x so negative values are allowed.
     For zhvi_{tier}_afford_ratio and zori_afford_ratio we use raw x (ratio on linear scale; do not log)."""
-    if RUN_PCA_ONLY:
-        return None
     if label_col is None:
         label_col = county_col
 
@@ -4549,8 +3921,6 @@ def run_one_regression(df_geo, dr_type, type_label, geo_label, x_col, file_tag, 
                        r2_diagnostics=None, r2_geography=None, legend_exclusion_note=None):
     """Run two-part regression for one (dr_type, geo, category); plot if fit succeeds.
     label_col: column for chart dot labels (e.g. 'JURISDICTION' for cities). Hierarchy always uses 'county'."""
-    if RUN_PCA_ONLY:
-        return
     cat_prefix = f'{dr_type}_{cat_suffix}'
     total_col = f'{cat_prefix}_total'
     if total_col not in df_geo.columns:
@@ -6484,7 +5854,7 @@ def _run_zip_regressions(df_apr_db_inc, df_apr_all, mf_mask_all, df_county, df_c
     print(f"  APR rows with valid CA ZIP: {len(df_apr_zip):,} / {len(df_apr_db_inc):,}")
     
     df_zip_for_pca = None
-    if not RUN_PCA_ONLY and len(df_apr_zip) > 0:
+    if len(df_apr_zip) > 0:
         # Efficient aggregation (OMNI: vectorized masks, single merge)
         db_mask = df_apr_zip['DR_TYPE_CLEAN'] == 'DB'
         inc_mask = df_apr_zip['DR_TYPE_CLEAN'] == 'INC'
@@ -7052,13 +6422,6 @@ def _run_zip_regressions(df_apr_db_inc, df_apr_all, mf_mask_all, df_county, df_c
     else:
         print("  No APR rows with valid CA ZIP codes; skipping ZIP-level analysis")
 
-    print("\n" + "="*70)
-    print(
-        "PCA EV1 + OLS: affordability ~ EV1 composite "
-        f"({EV1_STANDARDIZED_INPUT_CAPTION}; CITY only; "
-        f"{', '.join(_zhvi_tier_pct_afford_col(t['key']) for t in ZHVI_TIERS)}, zori_pct_afford)"
-    )
-    print("="*70)
     return df_zip_for_pca
 
 def main():
