@@ -40,11 +40,8 @@ ZIP_STREAM_PREFIXES = (
 
 ROBUSTNESS_SUFFIX_TO_KEY = {
     "": "none",
-    "_xsf": "xsf",
     "_city_hash": "randhash",
-    "_xsf_city_hash": "xsf_randhash",
     "_zip_hash": "randhash",
-    "_xsf_zip_hash": "xsf_randhash",
 }
 
 CITY_MIN_JURIS = 10
@@ -127,24 +124,6 @@ def predictors_for_geography(geography: str) -> list[str]:
     )
 
 
-def variables_for_geography(df_final, df_zip, geography: str) -> list[str]:
-    frame = df_zip if geography == "zip" else df_final
-    y_cols = zip_y_cols(frame) if geography == "zip" else city_y_cols(frame)
-    x_cols = [c for c in predictors_for_geography(geography) if c in frame.columns]
-    seen: set[str] = set()
-    out: list[str] = []
-    for key in [*y_cols, *x_cols]:
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(key)
-    return out
-
-
-def _construction_y_cols(geography: str, frame) -> frozenset[str]:
-    return frozenset(zip_y_cols(frame) if geography == "zip" else city_y_cols(frame))
-
-
 def _pair_dr_type_cat_suffix(geography: str, y_col: str, construction_cols: frozenset[str]) -> tuple[str, str]:
     if y_col in construction_cols:
         if geography == "zip":
@@ -161,43 +140,56 @@ def _x_col_requires_msa(x_col: str) -> bool:
 
 def _emit_directed_pairs(
     geography: str,
-    frame,
-    variables: list[str],
+    housing_vars: list[str],
+    econ_vars: list[str],
     min_jurisdictions: int,
 ) -> Iterator[PairRecord]:
-    construction_cols = _construction_y_cols(geography, frame)
-    for y_col in variables:
-        y_is_rate = geography == "zip" and y_col in construction_cols
-        dr_type, cat_suffix = _pair_dr_type_cat_suffix(geography, y_col, construction_cols)
-        for x_col in variables:
-            if x_col == y_col:
-                continue
-            requires_msa = _x_col_requires_msa(x_col)
-            yield PairRecord(
-                geography=geography,
-                y_col=y_col,
-                x_col=x_col,
-                robustness="none",
-                var_suffix="",
-                exclude_set=None,
-                requires_msa=requires_msa,
-                x_axis_filter_note="Metro Regions only" if requires_msa else None,
-                min_jurisdictions=min_jurisdictions,
-                dr_type=dr_type,
-                cat_suffix=cat_suffix,
-                y_is_rate=y_is_rate,
-            )
+    """Emit bipartite housing<->econ directed pairs (both directions, no same-side pairs).
+
+    For every housing outcome ``h`` in ``housing_vars`` and econ predictor ``e`` in
+    ``econ_vars``, emit ``(y=h, x=e)`` and ``(y=e, x=h)``. Housing×housing and
+    econ×econ combinations (and identity pairs) are never emitted, since the two
+    input lists are disjoint by construction. Each directed pair is emitted twice,
+    once at robustness ``none`` and once at robustness ``randhash``.
+    """
+    construction_cols = frozenset(housing_vars)
+    randhash_suffix = "_zip_hash" if geography == "zip" else "_city_hash"
+    robustness_variants = (("none", ""), ("randhash", randhash_suffix))
+
+    def _record(y_col, x_col, dr_type, cat_suffix, y_is_rate, robustness, var_suffix):
+        requires_msa = _x_col_requires_msa(x_col)
+        return PairRecord(
+            geography=geography,
+            y_col=y_col,
+            x_col=x_col,
+            robustness=robustness,
+            var_suffix=var_suffix,
+            exclude_set=None,
+            requires_msa=requires_msa,
+            x_axis_filter_note="Metro Regions only" if requires_msa else None,
+            min_jurisdictions=min_jurisdictions,
+            dr_type=dr_type,
+            cat_suffix=cat_suffix,
+            y_is_rate=y_is_rate,
+        )
+
+    for h in housing_vars:
+        h_dr_type, h_cat_suffix = _pair_dr_type_cat_suffix(geography, h, construction_cols)
+        h_y_is_rate = geography == "zip"
+        for e in econ_vars:
+            for robustness, var_suffix in robustness_variants:
+                yield _record(h, e, h_dr_type, h_cat_suffix, h_y_is_rate, robustness, var_suffix)
+                yield _record(e, h, e, "CO", False, robustness, var_suffix)
 
 
 def iter_pairs(
     df_final,
     df_zip,
-    *,
-    sf_zips_for_xsf: frozenset | None = None,
 ) -> Iterator[PairRecord]:
-    """Yield directed non-identity variable pairs at robustness none only."""
-    del sf_zips_for_xsf
-    city_vars = variables_for_geography(df_final, df_zip, "city")
-    zip_vars = variables_for_geography(df_final, df_zip, "zip")
-    yield from _emit_directed_pairs("city", df_final, city_vars, CITY_MIN_JURIS)
-    yield from _emit_directed_pairs("zip", df_zip, zip_vars, ZIP_MIN_JURIS)
+    """Yield bipartite housing<->econ directed pairs at robustness none and randhash."""
+    city_housing = city_y_cols(df_final)
+    city_econ = [c for c in predictors_for_geography("city") if c in df_final.columns]
+    zip_housing = zip_y_cols(df_zip)
+    zip_econ = [c for c in predictors_for_geography("zip") if c in df_zip.columns]
+    yield from _emit_directed_pairs("city", city_housing, city_econ, CITY_MIN_JURIS)
+    yield from _emit_directed_pairs("zip", zip_housing, zip_econ, ZIP_MIN_JURIS)

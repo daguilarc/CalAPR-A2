@@ -278,7 +278,6 @@ def build_pages_catalog(
     df_final = ctx["df_final"]
     df_zip = ctx["df_zip"]
     df_zip_yearly_long = ctx["df_zip_yearly_long"]
-    sf_zips = frozenset(ctx["sf_zips_for_xsf"])
     legend_note_payload = ctx["legend_note_payload"]
     permit_years = ctx["permit_years"]
 
@@ -292,7 +291,7 @@ def build_pages_catalog(
     n_hierarchical_failed = 0
     pair_offset = int(os.environ.get("PAGES_CATALOG_PAIR_OFFSET", "0") or 0)
 
-    for pair_index, pair in enumerate(iter_pairs(df_final, df_zip, sf_zips_for_xsf=sf_zips)):
+    for pair_index, pair in enumerate(iter_pairs(df_final, df_zip)):
         if pair_index < pair_offset:
             continue
         if max_pairs is not None and n_attempted >= max_pairs:
