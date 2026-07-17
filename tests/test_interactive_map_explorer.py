@@ -496,11 +496,18 @@ class RegistryAndMapFormulaTests(unittest.TestCase):
             )
 
     def test_pair_registry_generates_directed_nonidentity_variable_pairs(self):
-        from pages.pair_registry import iter_pairs
+        """iter_pairs emits bipartite housing<->econ directed pairs (Task 5 contract).
+
+        No sf_zips_for_xsf kwarg (removed), no housing x housing / econ x econ /
+        identity pairs, and robustness values are limited to {none, randhash}.
+        """
+        from pages.pair_registry import city_y_cols, iter_pairs, zip_y_cols
+
+        econ_cols = {"zori_pct_afford", "pct_afford_condo", "pct_afford_sfrcondo"}
 
         class CityFrame:
             columns = {
-                "DB_CO_total", "zori_pct_change", "zhvi_condo_pct_change",
+                "DB_CO_total", "zori_pct_afford", "pct_afford_condo",
                 "JURISDICTION", "county", "population",
             }
 
@@ -510,12 +517,39 @@ class RegistryAndMapFormulaTests(unittest.TestCase):
         class ZipFrame:
             columns = set()
 
-        pairs = list(iter_pairs(CityFrame(), ZipFrame(), sf_zips_for_xsf=frozenset()))
+            def __getitem__(self, key):
+                raise AssertionError("iter_pairs should not inspect row data")
+
+        pairs = list(iter_pairs(CityFrame(), ZipFrame()))
         keys = {(p.geography, p.y_col, p.x_col, p.robustness) for p in pairs}
-        self.assertIn(("city", "DB_CO_total", "zori_pct_change", "none"), keys)
-        self.assertIn(("city", "zori_pct_change", "DB_CO_total", "none"), keys)
-        self.assertNotIn(("city", "DB_CO_total", "DB_CO_total", "none"), keys)
-        self.assertTrue(all(r == "none" for *_, r in keys))
+        self.assertGreater(len(pairs), 0)
+
+        # Both directions of a housing/econ pair are emitted.
+        self.assertIn(("city", "DB_CO_total", "zori_pct_afford", "none"), keys)
+        self.assertIn(("city", "zori_pct_afford", "DB_CO_total", "none"), keys)
+
+        housing_cols = set(city_y_cols(CityFrame())) | set(zip_y_cols(ZipFrame()))
+        for p in pairs:
+            y_is_housing = p.y_col in housing_cols
+            x_is_housing = p.x_col in housing_cols
+            y_is_econ = p.y_col in econ_cols
+            x_is_econ = p.x_col in econ_cols
+
+            # No housing x housing.
+            self.assertFalse(
+                y_is_housing and x_is_housing,
+                f"housing x housing pair emitted: {p.y_col} / {p.x_col}",
+            )
+            # No econ x econ.
+            self.assertFalse(
+                y_is_econ and x_is_econ,
+                f"econ x econ pair emitted: {p.y_col} / {p.x_col}",
+            )
+            # No identity pairs.
+            self.assertNotEqual(p.y_col, p.x_col)
+
+        robustness_values = {p.robustness for p in pairs}
+        self.assertTrue(robustness_values <= {"none", "randhash"})
 
     def test_continuous_fit_exports_mle_curve_shape(self):
         from acs_apr_models import _predictor_fit_mask_kind, _predictor_is_log_x
