@@ -3991,6 +3991,15 @@ def fit_pairs(df_final, df_zip, df_zip_yearly_long, permit_years, *, max_pairs=N
                 if hierarchical is not None:
                     fit["intercept_samples"] = hierarchical["intercept_samples"]
                     fit["slope_samples"] = hierarchical["slope_samples"]
+            elif fit is not None and not r2_gate_passed:
+                # R2 gate FAIL: keep MLE, drop both the (never-attempted) Bayes
+                # hierarchical samples and the already-computed stationary-bootstrap
+                # samples so a failed-gate result doesn't surface a bootstrap band.
+                for key in (
+                    "boot_alpha_samples", "boot_beta_samples",
+                    "boot_intercept_samples", "boot_slope_samples",
+                ):
+                    fit[key] = None
         else:
             fit = (
                 _fit_housing_y_zip(pair, df_zip, df_zip_yearly_long)
@@ -4005,7 +4014,11 @@ def fit_pairs(df_final, df_zip, df_zip_yearly_long, permit_years, *, max_pairs=N
                 and fit["ols_rsquared"] >= R2_OLS_POSITIVE_THRESHOLD
             )
             if fit is not None and not r2_gate_passed:
-                for key in ("intercept_samples", "slope_samples", "alpha_samples", "beta_samples"):
+                for key in (
+                    "intercept_samples", "slope_samples", "alpha_samples", "beta_samples",
+                    "boot_alpha_samples", "boot_beta_samples",
+                    "boot_intercept_samples", "boot_slope_samples",
+                ):
                     fit[key] = None
 
         coeffs = None
