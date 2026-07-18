@@ -120,7 +120,8 @@
       replaceOptions("y-col",ys,variableLabel,y);
       replaceOptions("x-col",xs,variableLabel,x);
       const pair=selectedPair();
-      const displays=pair?.availability?.hierarchical?["both","stationary_bootstrap","hierarchical"]:["stationary_bootstrap"];
+      const avail=pair?.availability||{},bootOk=!!avail.stationary_bootstrap,hierOk=!!avail.hierarchical;
+      const displays=[...(bootOk&&hierOk?["both"]:[]),...(bootOk?["stationary_bootstrap"]:[]),...(hierOk?["hierarchical"]:[])];
       replaceOptions("model-display",displays,v=>MODEL_LABELS[v]);
       return pair;
     }
