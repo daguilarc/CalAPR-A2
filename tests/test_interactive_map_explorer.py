@@ -552,8 +552,15 @@ class RegistryAndMapFormulaTests(unittest.TestCase):
         self.assertTrue(robustness_values <= {"none", "randhash"})
 
     def test_continuous_fit_exports_mle_curve_shape(self):
-        from acs_apr_models import _predictor_fit_mask_kind, _predictor_is_log_x
-        from pages.catalog_builder import _fit_continuous_pair
+        # Task 6c deleted the duplicate pages/catalog_builder.py::_fit_continuous_pair;
+        # the single surviving continuous-fit implementation is
+        # acs_apr_models.py::_fit_econ_y_pair, which fit_pairs calls for econ-as-Y pairs.
+        # Its signature takes a pair-record-shaped object (x_col/y_col/min_jurisdictions/
+        # requires_msa) instead of individual x_transform/x_fit_mask_kind/county_col
+        # kwargs -- those are now derived internally from ECON_META (defaulting to
+        # identity transform + finite mask for an x_col with no predictor metadata,
+        # exactly as this synthetic x_col exercises here).
+        from acs_apr_models import _fit_econ_y_pair
 
         n = 20
         x = np.linspace(1.0, float(n), n)
@@ -564,17 +571,13 @@ class RegistryAndMapFormulaTests(unittest.TestCase):
             "zhvi_condo_pct_change": x,
             "zori_pct_change": 2.0 * x,
         })
-        result = _fit_continuous_pair(
-            frame,
-            label_col="JURISDICTION",
-            county_col="county",
+        pair = SimpleNamespace(
             x_col="zhvi_condo_pct_change",
             y_col="zori_pct_change",
             min_jurisdictions=10,
-            x_transform="log" if _predictor_is_log_x("zhvi_condo_pct_change") else "identity",
-            x_fit_mask_kind=_predictor_fit_mask_kind("zhvi_condo_pct_change"),
             requires_msa=False,
         )
+        result = _fit_econ_y_pair(pair, frame, label_col="JURISDICTION")
         self.assertIsNotNone(result)
         self.assertAlmostEqual(result["slope_mle"], 2.0, places=3)
         self.assertEqual(result["mle_result"]["model_family"], "continuous")
