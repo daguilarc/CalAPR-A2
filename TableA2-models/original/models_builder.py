@@ -7,12 +7,16 @@ from acs_apr_models import (
     R2_THRESHOLD,
     _run_city_regressions,
     _run_zip_regressions,
+    fit_pairs,
     pd,
 )
 
 
 def build_original_models(ctx):
-    """Run Steps 12-13 + r2 diagnostics from precomputed panel context."""
+    """Run Steps 12-13 + r2 diagnostics from precomputed panel context.
+
+    fit_pairs runs exactly once here; both renderers (_run_city_regressions,
+    _run_zip_regressions) only draw PNGs from its result list, never fit."""
     charts_skipped_low_r2 = []
     all_r2_results = ctx["all_r2_results"]
     base_output_dir = ctx["base_output_dir"]
@@ -20,14 +24,31 @@ def build_original_models(ctx):
     city_charts_dir = base_output_dir / "Cities"
     zip_charts_dir = base_output_dir / "ZIPCodes"
 
-    x_var_labels = _run_city_regressions(
-        ctx["df_final"],
+    # Build the ZIP panel (needed by fit_pairs) without running any regressions yet.
+    df_zip, df_zip_yearly_long, sf_zips_for_xsf = _run_zip_regressions(
         ctx["df_apr_db_inc"],
-        ctx["permit_years"],
+        ctx["df_apr_all"],
+        ctx["mf_mask_all"],
+        ctx["df_county"],
+        ctx["df_county_cbsa"],
+        ctx["df_msa"],
+        ctx["ca_county_name_to_fips"],
+        ctx["legend_note_payload"],
+        charts_skipped_low_r2,
+        all_r2_results,
+        zip_charts_dir,
+        panels_only=True,
+    )
+
+    fit_results = fit_pairs(ctx["df_final"], df_zip, df_zip_yearly_long, ctx["permit_years"])
+
+    _run_city_regressions(
+        fit_results,
         ctx["legend_note_payload"],
         charts_skipped_low_r2,
         all_r2_results,
         city_charts_dir,
+        ctx["permit_years"],
     )
     df_zip_for_pca = _run_zip_regressions(
         ctx["df_apr_db_inc"],
@@ -37,11 +58,13 @@ def build_original_models(ctx):
         ctx["df_county_cbsa"],
         ctx["df_msa"],
         ctx["ca_county_name_to_fips"],
-        x_var_labels,
         ctx["legend_note_payload"],
         charts_skipped_low_r2,
         all_r2_results,
         zip_charts_dir,
+        panels_only=False,
+        fit_results=fit_results,
+        permit_years=ctx["permit_years"],
     )
 
     if all_r2_results:
@@ -69,7 +92,7 @@ def build_original_models(ctx):
 
     print("\nAnalysis complete.")
     return {
-        "x_var_labels": x_var_labels,
+        "fit_results": fit_results,
         "df_zip_for_pca": df_zip_for_pca,
         "all_r2_results": all_r2_results,
         "charts_skipped_low_r2": charts_skipped_low_r2,

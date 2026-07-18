@@ -22,7 +22,6 @@ def prepare_pages_context(base_path: Path | None = None) -> dict[str, Any]:
         panel_ctx["df_county_cbsa"],
         panel_ctx["df_msa"],
         panel_ctx["ca_county_name_to_fips"],
-        {},
         panel_ctx["legend_note_payload"],
         [],
         [],

@@ -4140,7 +4140,7 @@ def _plot_income_chart(result, output_path, title_suffix, acs_year_range, apr_ye
 
 
 def run_one_regression(df_geo, dr_type, type_label, geo_label, x_col, file_tag, cat_suffix, cat_label, years,
-                       output_dir, x_var_labels, skipped_low_r2=None, label_col='JURISDICTION', x_axis_filter_note=None,
+                       output_dir, skipped_low_r2=None, label_col='JURISDICTION', x_axis_filter_note=None,
                        r2_diagnostics=None, r2_geography=None, legend_exclusion_note=None):
     """Run two-part regression for one (dr_type, geo, category); plot if fit succeeds.
     label_col: column for chart dot labels (e.g. 'JURISDICTION' for cities). Hierarchy always uses 'county'."""
@@ -5763,148 +5763,164 @@ def _select_output_columns(df_final, permit_years, categories, year_cols_by_dr_c
     # =============================================================================
     return df_final
 
-def _run_city_regressions(df_final, df_apr_db_inc, permit_years, legend_note_payload, charts_skipped_low_r2, all_r2_results, city_charts_dir):
-    """City two-part regressions and rate-on-rate charts."""
-    # Step 12: Bayesian Linear Regression with Sequential Updating (Counties Only)
-    # Regresses total_units_DB on log(county_income) with yearly Bayesian updates
-    # =============================================================================
-    _report_stage_missing_columns(
-        "Step 12/13",
-        {"df_final": df_final, "df_apr_db_inc": df_apr_db_inc},
-        {
-            "df_final": {"JURISDICTION", "county", "geography_type", "population", "msa_income"},
-            "df_apr_db_inc": {"zipcode", "dr_units_CO", "proj_units_CO", "DR_TYPE_CLEAN", "is_owner"},
-        },
+# --- Section: two_part PairFitResult renderer (OG draws PNGs; it no longer fits) ---
+# Housing-as-Y (fit_kind == "two_part") results only; continuous (econ-as-Y) results are
+# skipped here entirely — those are the Pages/JSON renderer's territory. Every value drawn
+# below is read off the precomputed PairFitResult (chart_arrays / coeffs / r2 / render meta);
+# no fit_two_part_with_ci (or any fit) call happens in this section.
+_ROBUSTNESS_GEO_LABEL = {
+    "none": None,
+    "randhash": "- # 20% holdout",
+}
+
+
+def _two_part_pair_chart_id(result, dr_type, cat_suffix):
+    """Filename stem (and r2-diagnostics chart id) for one two_part PairFitResult."""
+    is_zip = result.geography == "zip"
+    file_prefix = result.y_render_meta.get("file_tag") or dr_type.lower()
+    robustness_tag = "" if result.robustness == "none" else ("_zip_hash" if is_zip else "_city_hash")
+    return f"{'zip_' if is_zip else ''}{file_prefix}_{cat_suffix.lower()}_{result.x_col}{robustness_tag}"
+
+
+def _two_part_ppm_at_median_x(chart_arrays):
+    """Posterior predictive mean at median x, from already-scaled chart_arrays.
+    x_line_plot/x_scatter_plot share whatever display scale build_chart_arrays applied (e.g.
+    the ×100 percent-afford scaling), so interpolating within that one scale is exact —
+    equivalent to computing on raw model-scale x, since interp(k·xm, k·x_line, y) == interp(xm, x_line, y)."""
+    bayes_mean = chart_arrays.get("bayes_mean")
+    if bayes_mean is None:
+        return np.nan
+    x_line = np.asarray(chart_arrays["x_line_plot"], dtype=np.float64)
+    if len(x_line) == 0:
+        return np.nan
+    xm = float(np.nanmedian(np.asarray(chart_arrays["x_scatter_plot"], dtype=np.float64)))
+    return float(np.interp(xm, x_line, np.asarray(bayes_mean, dtype=np.float64)))
+
+
+def _append_pair_r2_diagnostics_row(r2_diagnostics, result, geography_label):
+    """Append one R2_DIAG_COLUMNS row from a two_part PairFitResult.
+    Per-observation t/p stats (Positive_part_slope_t/p, Zero_mle_t/p) lived on the raw MLE
+    result object that OG no longer holds (fit_pairs keeps only point estimates + r2 on
+    PairFitResult.coeffs/.r2); those four columns are NaN here."""
+    if r2_diagnostics is None:
+        return
+    regression_label = f"{result.y_render_meta['display_label']} vs {result.x_render_meta['display_label']}"
+    r2_diagnostics.append((
+        regression_label,
+        geography_label,
+        float(result.r2["mcfadden_r2"]),
+        result.r2.get("ols_rsquared"),
+        float(result.coeffs["slope_mle"]),
+        np.nan,
+        np.nan,
+        float(result.coeffs["beta_mle"]),
+        np.nan,
+        np.nan,
+        _two_part_ppm_at_median_x(result.chart_arrays),
+    ))
+
+
+def _draw_two_part_pair_png(result, output_dir, legend_note_payload, apr_year_range):
+    """Draw one two_part PairFitResult's PNG(s) (main + positive-OLS companion, when the x_col
+    predictor calls for one) straight from its precomputed chart_arrays. No fitting here.
+
+    ppm_beta (Bayes posterior mean beta) and positive_ols_r2 (companion-chart R² of the y>0
+    subset vs. the reused two-part line) are left None: both require raw values PairFitResult
+    does not carry (hierarchical slope_samples; raw model-scale x/y for the R² calc), and
+    plot_two_part_chart already renders correctly with either omitted (pre-existing None-safe
+    legend behavior), so this is a graceful drop, not a fabrication.
+    """
+    from pages.pair_registry import parse_city_outcome, parse_zip_outcome
+
+    is_zip = result.geography == "zip"
+    parser = parse_zip_outcome if is_zip else parse_city_outcome
+    dr_type, cat_suffix = parser(result.y_col)
+    ca = result.chart_arrays
+    y_label = f"{result.y_render_meta['display_label']} per 1000 pop"
+    tick_kind = result.x_render_meta.get("tick_kind")
+    is_log_x = bool(ca.get("is_log_x"))
+    x_tick_dollar = is_log_x and tick_kind != "days"
+    x_tick_days = is_log_x and tick_kind == "days"
+    x_tick_percent = (not is_log_x) and tick_kind == "percent"
+    data_label = CHART_LEGEND_GEO_ZIP if is_zip else CHART_LEGEND_GEO_CITY
+    legend_exclusion_note = _resolve_legend_note(legend_note_payload, dr_type, cat_suffix, result.geography)
+    chart_id = _two_part_pair_chart_id(result, dr_type, cat_suffix)
+    output_path = output_dir / f"{chart_id}.png"
+    label_cleanup = lambda s: str(s).replace(' COUNTY', '')
+    plot_two_part_chart(
+        x_scatter=ca["x_scatter_plot"], y_scatter=ca["y_scatter"],
+        x_line=ca["x_line_plot"], mle_y=ca["mle_y"],
+        output_path=output_path,
+        x_label=ca["x_label"], y_label=y_label,
+        data_label=data_label, apr_year_range=apr_year_range,
+        r2=result.r2["mcfadden_r2"], ols_r2=result.r2.get("ols_rsquared"),
+        boot_ci_lo=ca["boot_ci_lo"], boot_ci_hi=ca["boot_ci_hi"],
+        bayes_ci_lo=ca["bayes_ci_lo"], bayes_ci_hi=ca["bayes_ci_hi"],
+        bayes_mean=ca["bayes_mean"],
+        labels=ca.get("labels"), label_cleanup=label_cleanup,
+        use_log_x=is_log_x,
+        x_tick_dollar=x_tick_dollar, x_tick_percent=x_tick_percent, x_tick_days=x_tick_days,
+        also_annotate_second_max_x=is_zip,
+        legend_exclusion_note=legend_exclusion_note,
+        mle_beta=float(result.coeffs["slope_mle"]),
+        ppm_beta=None,
+    )
+    if _predictor_positive_ols_companion(result.x_col):
+        companion_path = output_path.with_name(f"{output_path.stem}_positive_ols{output_path.suffix}")
+        plot_two_part_chart(
+            x_scatter=ca["x_scatter_plot"], y_scatter=ca["y_scatter"],
+            x_line=ca["x_line_plot"], mle_y=ca["mle_y"],
+            output_path=companion_path,
+            x_label=ca["x_label"], y_label=y_label,
+            data_label=data_label, apr_year_range=apr_year_range,
+            r2=0.0, ols_r2=None,
+            boot_ci_lo=None, boot_ci_hi=None, bayes_ci_lo=None, bayes_ci_hi=None, bayes_mean=None,
+            labels=ca.get("labels"), label_cleanup=label_cleanup,
+            use_log_x=is_log_x,
+            x_tick_dollar=x_tick_dollar, x_tick_percent=x_tick_percent, x_tick_days=x_tick_days,
+            also_annotate_second_max_x=is_zip,
+            positive_ols_simple=True, x_col_for_ols=result.x_col,
+            positive_line_y=ca.get("positive_line_y"), positive_ols_r2=None,
+            legend_exclusion_note=legend_exclusion_note,
+            mle_beta=float(result.coeffs["slope_mle"]),
+        )
+
+
+def _render_two_part_results(fit_results, geography, output_dir, legend_note_payload,
+                              charts_skipped_low_r2, all_r2_results, apr_year_range):
+    """Draw PNGs for every fit_kind == 'two_part' PairFitResult at one geography; append r2
+    diagnostics rows and track low-R² skips. Pure consumption of fit_pairs output — no fitting."""
+    from pages.pair_registry import parse_city_outcome, parse_zip_outcome
+
+    is_zip = geography == "zip"
+    parser = parse_zip_outcome if is_zip else parse_city_outcome
+    geo_base = GEOGRAPHY_ZIP if is_zip else GEOGRAPHY_CITY
+    for result in fit_results:
+        if result.geography != geography or result.fit_kind != "two_part":
+            continue
+        if result.coeffs is None or result.chart_arrays is None:
+            continue
+        dr_type, cat_suffix = parser(result.y_col)
+        geography_label = _geo_label(geo_base, _ROBUSTNESS_GEO_LABEL.get(result.robustness))
+        _append_pair_r2_diagnostics_row(all_r2_results, result, geography_label)
+        if not result.r2_gate_passed:
+            if charts_skipped_low_r2 is not None:
+                chart_id = _two_part_pair_chart_id(result, dr_type, cat_suffix)
+                charts_skipped_low_r2.append((chart_id, result.r2["mcfadden_r2"]))
+            continue
+        _draw_two_part_pair_png(result, output_dir, legend_note_payload, apr_year_range)
+
+
+def _run_city_regressions(fit_results, legend_note_payload, charts_skipped_low_r2, all_r2_results, city_charts_dir, permit_years):
+    """City two-part regressions: draw PNGs from precomputed fit_pairs results
+    (housing-as-Y, fit_kind == 'two_part'); OG no longer fits."""
+    apr_year_range = f"{min(permit_years)}-{max(permit_years)}" if permit_years else ""
+    _render_two_part_results(
+        fit_results, "city", city_charts_dir, legend_note_payload,
+        charts_skipped_low_r2, all_r2_results, apr_year_range,
     )
 
-    # Run MLE two-part regressions: one loop over DR_TYPE × geography × category (OMNI: no repetition)
-    # DR_TYPE specs: (prefix, title label); category specs: (suffix, label). db_owner excluded (insufficient data, models disperse).
-    dr_specs = [
-        ('DB', LABEL_STREAM_MF_DB_DR),
-        ('PROJ_DB', LABEL_STREAM_MF_DB_TOTAL),
-        ('INC', LABEL_STREAM_MF_INC_DR),
-        ('PROJ_INC', LABEL_STREAM_MF_INC_TOTAL),
-        ('total_owner', 'For-Sale'),
-        ('mf_owner', 'Multifamily For-Sale'),
-        ('TOTAL', 'Net Housing'),
-        ('TOTAL_MF', 'Net Multifamily Housing'),
-    ]
-    # Cities only (counties removed per user request); city predictor loop uses city_predictor_specs below
-    cat_specs = [
-        ("CO", PHASE_COUNT_LABEL_BY_TAG["CO"]),
-    ]
-    # Labels from canonical predictor metadata; no duplicated predictor literals.
-    x_var_labels = {
-        x_col: meta["display_label"]
-        for x_col, meta in ECON_META.items()
-        if meta["geo_applicability"] in ("city", "both")
-    }
-    x_var_labels["place_income"] = "City Median Household Income"
-    output_dir = city_charts_dir
-
-    # City predictor specs from canonical metadata: (x_col, file_tag, print_title, x_axis_filter_note, require_msa)
-    city_file_tag = {
-        **_zhvi_predictor_file_tags(),
-        "zori_pct_change": "zori",
-        "zori_afford_ratio": "zori_afford",
-        "zori_pct_afford": "zori_pct_afford",
-    }
-    city_predictor_specs = [
-        (
-            x_col,
-            city_file_tag[x_col],
-            _predictor_print_title(x_col),
-            "Metro Regions only" if _predictor_requires_msa(x_col) else None,
-            _predictor_requires_msa(x_col),
-        )
-        for x_col in city_file_tag
-        if x_col in ECON_META
-    ]
-    # Precompute context for city-level repeated filtering.
-    city_xsf_ctx = _build_city_xsf_mask_context(df_final, CITY_XSF_EXCLUDE)
-    city_base_mask = city_xsf_ctx.is_city
-    city_fit_masks = {}
-    for x_col, *_ in city_predictor_specs:
-        if x_col not in df_final.columns:
-            continue
-        fit_mask_kind = _predictor_fit_mask_kind(x_col)
-        if fit_mask_kind == "finite":
-            city_fit_masks[x_col] = (
-                df_final[x_col].notna()
-                & np.isfinite(np.asarray(df_final[x_col].values, dtype=np.float64))
-            )
-        else:
-            city_fit_masks[x_col] = df_final[x_col].notna() & (df_final[x_col] > 0)
-
-    # Dynamic sets for city MFH sub-variants (hash holdout ~20%)
-    hash_exclude_cities = {
-        j
-        for j in df_final.loc[city_base_mask, 'JURISDICTION'].dropna().unique()
-        if hash(j) % HOLDOUT_MODULUS == 0
-    }
-    xsf_city_mask = city_xsf_ctx.is_city_non_xsf
-    hash_exclude_xsf_cities = {
-        j
-        for j in df_final.loc[xsf_city_mask, 'JURISDICTION'].dropna().unique()
-        if hash(j) % HOLDOUT_MODULUS == 0
-    }
-    city_subvariants = [
-        (CITY_XSF_EXCLUDE, '_xsf', 'excl. SF'),
-        (hash_exclude_cities, '_city_hash', '- # 20%'),
-        (
-            CITY_XSF_EXCLUDE | hash_exclude_xsf_cities,
-            '_xsf_city_hash',
-            'excl. SF - # 20%',
-        ),
-    ]
-    for x_col, file_tag, print_title, x_axis_filter_note, require_msa in city_predictor_specs:
-        if x_col not in df_final.columns:
-            continue
-        valid_x = city_fit_masks[x_col]
-        if require_msa:
-            valid_x = valid_x & df_final['msa_income'].notna()
-        geo_mask = city_base_mask & valid_x
-        df_geo = df_final[geo_mask].copy()
-        if len(df_geo) < 10:
-            continue
-        for dr_type, type_label in dr_specs:
-            variants = [(None, '', None)] + city_subvariants if dr_type in ('TOTAL_MF', 'mf_owner') else [(None, '', None)]
-            dr_cols = [c for c in df_final.columns if c.startswith(f'{dr_type}_')]
-            dr_years = sorted(set(int(c.split('_')[-1]) for c in dr_cols if c.split('_')[-1].isdigit()))
-            print("\n" + "="*70)
-            print(f"MLE TWO-PART REGRESSION: {type_label} vs {print_title} - CITIES")
-            print("="*70)
-            print(f"  Found {len(df_geo)} cities with valid {x_col} data")
-            print(f"  SAN FRANCISCO included: {'SAN FRANCISCO' in df_geo['JURISDICTION'].values}")
-            print(f"  {dr_type} data for years: {dr_years}")
-            for (cat_suffix, cat_label), (exclude, var_suffix, var_label) in product(cat_specs, variants):
-                if exclude is None:
-                    df_var = df_geo
-                else:
-                    exclude_upper = _to_upper_set(exclude)
-                    df_var = df_geo[_exclude_by_upper(df_geo['JURISDICTION'], exclude_upper)].copy()
-                if len(df_var) < 10:
-                    continue
-                filter_note = x_axis_filter_note
-                geo_label_run = (
-                    f"{CHART_LEGEND_GEO_CITY} {var_label}" if var_label else CHART_LEGEND_GEO_CITY
-                )
-                legend_exclusion_note = _resolve_legend_note(
-                    legend_note_payload,
-                    dr_type,
-                    cat_suffix,
-                    "city",
-                )
-                print(f"\n  --- {cat_label} ({dr_type}_{cat_suffix}){var_suffix or ''} ---")
-                run_one_regression(df_var, dr_type, type_label, geo_label_run, x_col, file_tag + (var_suffix or ''),
-                                  cat_suffix, cat_label, dr_years, output_dir, x_var_labels, charts_skipped_low_r2,
-                                  label_col='JURISDICTION', x_axis_filter_note=filter_note,
-                                  r2_diagnostics=all_r2_results, r2_geography=_geo_label(GEOGRAPHY_CITY, var_label),
-                                  legend_exclusion_note=legend_exclusion_note)
-
-    return x_var_labels
-
-def _run_zip_regressions(df_apr_db_inc, df_apr_all, mf_mask_all, df_county, df_county_cbsa, df_msa, ca_county_name_to_fips, x_var_labels, legend_note_payload, charts_skipped_low_r2, all_r2_results, zip_charts_dir, panels_only=False):
+def _run_zip_regressions(df_apr_db_inc, df_apr_all, mf_mask_all, df_county, df_county_cbsa, df_msa, ca_county_name_to_fips, legend_note_payload, charts_skipped_low_r2, all_r2_results, zip_charts_dir, panels_only=False, fit_results=None, permit_years=None):
     """ZIP-level aggregation, predictors, and regressions."""
     # Step 13: ZIP-Level Poisson/NB Regression (owner_CO and db_owner_CO)
     # Uses df_apr_db_inc which has zipcode from the single APR load
@@ -6257,132 +6273,20 @@ def _run_zip_regressions(df_apr_db_inc, df_apr_all, mf_mask_all, df_county, df_c
         if panels_only:
             return df_zip, df_zip_yearly_long, sf_zips_for_xsf
 
-        # Save ZIP-level dataset
-        # Run two-part rate regressions (per 1000 pop) for each outcome × predictor
-        # db_owner excluded: insufficient data, models disperse; total-housing outcome = net of demolitions
-        # ZIP outcome (col, label) pairs derived from HOUSING_META (single source; see that
-        # section) — db_owner has no HOUSING_META zip_prefix, so it is absent here as before.
-        zip_outcome_specs = [
-            (f"{meta['zip_prefix']}_CO", meta["display_label"])
-            for meta in HOUSING_META.values()
-            if meta["zip_prefix"] is not None
-        ]
-        # (x_col, x_tag, x_axis_label, use_log_x, x_tick_dollar, require_msa) from canonical metadata.
-        zip_x_tag = {
-            "median_income": "income",
-            **_zhvi_predictor_file_tags(),
-            "zori_pct_change": "zori",
-            "zori_afford_ratio": "zori_afford",
-            "zori_pct_afford": "zori_pct_afford",
-        }
-        zip_label_override = {
-            _zhvi_tier_afford_ratio_col(t["key"]): _zhvi_afford_label(t["label"])
-            for t in ZHVI_TIERS
-        }
-        zip_label_override.update({
-            _zhvi_tier_pct_afford_col(t["key"]): _zhvi_pct_afford_label(t["label"])
-            for t in ZHVI_TIERS
-        })
-        zip_label_override.update({
-            "zori_afford_ratio": ZORI_AFFORD_X_LABEL_ZIP,
-            "zori_pct_afford": ZORI_PCT_AFFORD_X_LABEL_ZIP,
-        })
-        zip_predictor_specs = [
-            (
-                x_col,
-                zip_x_tag[x_col],
-                zip_label_override.get(x_col, _predictor_display_label(x_col)),
-                _predictor_is_log_x(x_col),
-                _predictor_tick_kind(x_col) == "dollar",
-                _predictor_requires_msa(x_col),
-            )
-            for x_col in zip_x_tag
-        ]
-        zip_x_var_labels = {**x_var_labels}
-        for x_col in zip_x_tag:
-            zip_x_var_labels[x_col] = zip_label_override.get(x_col, _predictor_display_label(x_col))
         df_zip_for_pca = df_zip.copy()
-        
+
         # ZIP regressions: two-part rate (per 1000 pop), same as city. Population from ACS ZCTA.
         if 'population' not in df_zip.columns or (df_zip['population'].notna() & (df_zip['population'] > 0)).sum() < 20:
             print("  WARNING: Insufficient ZIP population (ACS ZCTA); skipping ZIP rate regressions.")
             if panels_only:
                 return df_zip, pd.DataFrame(), sf_zips_for_xsf
-        else:
-            print("  ZIP rate regressions: CI band = Hierarchical Bayes (year + county) when yearly data supports SMC; else stationary MC bootstrap from two-part MLE refits (same as city two-part).")
-            zip_str = df_zip['zipcode'].astype(str)
-            # Holdout uses str ZIPs → hash() is CPython string hashing (subset stable within a run; can differ across processes unless PYTHONHASHSEED is fixed). For reproducible holdout across runs, hash numeric codes instead: drop .astype(str) in the comprehensions below when zipcode is integer-like.
-            hash_exclude_zips = {
-                z for z in zip_str if hash(z) % HOLDOUT_MODULUS == 0
-            }
-            zip_str_zfill = zip_str.str.zfill(5)
-            non_sf_zips = set(zip_str_zfill) - sf_zips_for_xsf
-            hash_exclude_xsf_zips = {z for z in non_sf_zips if hash(z) % HOLDOUT_MODULUS == 0}
-            zip_mfh_subvariants = [
-                (None, '', None),
-                (sf_zips_for_xsf, '_xsf', 'excl. SF Co.'),
-                (hash_exclude_zips, '_zip_hash', '- # 20%'),
-                (
-                    sf_zips_for_xsf | hash_exclude_xsf_zips,
-                    '_xsf_zip_hash',
-                    'excl. SF Co. - # 20%',
-                ),
-            ]
-            # Outcome×predictor at ZIP: MFH outcomes get zip_mfh_subvariants (baseline, _xsf, _zip_hash, _xsf_zip_hash); non-MFH get baseline only
-            for y_col, y_label in zip_outcome_specs:
-                variants = zip_mfh_subvariants if 'MF' in y_col else [(None, '', None)]
-                for exclude_zips, suffix, exclude_label in variants:
-                    if exclude_zips is None:
-                        df_use = df_zip
-                    else:
-                        df_use = df_zip[_exclude_by_str(df_zip['zipcode'], exclude_zips)].copy()
-                    if len(df_use) < 20:
-                        continue
-                    zip_pred_nonnull = {
-                        xc: int(df_use[xc].notna().sum())
-                        for xc, *_ in zip_predictor_specs
-                        if xc in df_use.columns
-                    }
-                    for x_col, x_tag, x_axis_label, use_log_x, x_tick_dollar, require_msa in zip_predictor_specs:
-                        if x_col not in df_use.columns or zip_pred_nonnull.get(x_col, 0) < 20:
-                            print(f"\n  Skipping {y_label} vs {x_col}{suffix or ''}: insufficient predictor data")
-                            continue
-                        pred_ok = (df_use[x_col].notna() & np.isfinite(df_use[x_col].values)) if not use_log_x else (df_use[x_col].notna() & (df_use[x_col] > 0))
-                        if require_msa:
-                            pred_ok = pred_ok & df_use['msa_income'].notna()
-                        valid = pred_ok & df_use[y_col].notna() & df_use['population'].notna() & (df_use['population'] > 0)
-                        df_v = df_use[valid]
-                        if len(df_v) < 20:
-                            print(f"\n  Skipping {y_label} vs {x_col}{suffix or ''}: insufficient ZIPs with population")
-                            continue
-                        stream_key = _stream_from_outcome_col(y_col)
-                        phase_key = "CO" if y_col.endswith("_CO") else None
-                        legend_exclusion_note = None
-                        if stream_key is not None and phase_key is not None:
-                            legend_exclusion_note = _resolve_legend_note(
-                                legend_note_payload,
-                                stream_key,
-                                phase_key,
-                                "zip",
-                            )
-                        _zip_outcome_predictor_fit_ci_and_charts(
-                            df_v,
-                            y_col,
-                            y_label,
-                            x_col,
-                            x_tag,
-                            x_axis_label,
-                            use_log_x,
-                            x_tick_dollar,
-                            require_msa,
-                            suffix,
-                            exclude_label,
-                            df_zip_yearly_long,
-                            all_r2_results,
-                            charts_skipped_low_r2,
-                            zip_charts_dir,
-                            legend_exclusion_note=legend_exclusion_note,
-                        )
+        elif fit_results is not None:
+            # OG draws PNGs from the precomputed fit_pairs result set; it no longer fits here.
+            apr_year_range = f"{min(permit_years)}-{max(permit_years)}" if permit_years else ""
+            _render_two_part_results(
+                fit_results, "zip", zip_charts_dir, legend_note_payload,
+                charts_skipped_low_r2, all_r2_results, apr_year_range,
+            )
     else:
         print("  No APR rows with valid CA ZIP codes; skipping ZIP-level analysis")
 
