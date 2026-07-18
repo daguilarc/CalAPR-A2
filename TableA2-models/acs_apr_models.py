@@ -3706,13 +3706,25 @@ class PairFitResult:
     whichever of HOUSING_META/ECON_META the column belongs to — same lookup regardless of
     whether the column is playing the outcome or the predictor in this pair.
 
-    ppm_beta / mle_diag are two_part-only (housing-as-Y): ppm_beta is the hierarchical-Bayes
-    posterior mean beta (mean of fit_two_part_with_ci's slope_samples, when present); mle_diag
-    carries the positive-part/zero-hurdle t/p-stats straight off fit_two_part_with_ci's
-    mle_result dict (positive_part_t/p, zero_mle_t/p) for the r2_diagnostics.csv row. r2 may
-    also carry a "positive_ols_r2" key (two_part only) -- the companion-chart R² of the y>0
-    subset vs. the reused positive-part MLE line. All None/absent for continuous (econ-as-Y)
-    results, which OG does not render.
+    ppm_beta is the hierarchical-Bayes posterior mean beta (mean of slope_samples, when
+    present) -- populated for BOTH fit kinds now (two_part's positive-part slope, or
+    continuous's single OLS slope). mle_diag carries the positive-part/zero-hurdle t/p-stats
+    straight off fit_two_part_with_ci's mle_result dict (positive_part_t/p, zero_mle_t/p) for
+    the r2_diagnostics.csv row -- still two_part-only (housing-as-Y), since that CSV row and
+    its zero-hurdle stats have no continuous analogue. r2 may also carry a "positive_ols_r2"
+    key (two_part only) -- the companion-chart R² of the y>0 subset vs. the reused
+    positive-part MLE line; that key is absent for continuous (econ-as-Y) results, which OG
+    does not render.
+
+    samples carries the raw posterior/bootstrap sample arrays straight off the fit dict
+    (alpha_samples, beta_samples, intercept_samples, slope_samples, boot_alpha_samples,
+    boot_beta_samples, boot_intercept_samples, boot_slope_samples -- individually None-safe,
+    whichever the fit actually produced) so consumers can build whichever view they need
+    (e.g. a positive-only band = intercept_samples + slope_samples*x, skipping the
+    alpha/beta hurdle term) instead of being limited to the one hurdle band pre-baked into
+    chart_arrays. availability mirrors pages/export.py's catalog availability flags
+    (stationary_bootstrap, hierarchical booleans) so a consumer can tell whether a real band
+    was computed without re-deriving it from chart_arrays/samples itself.
     """
 
     geography: str
@@ -3729,6 +3741,8 @@ class PairFitResult:
     x_render_meta: dict
     ppm_beta: float | None = None
     mle_diag: dict | None = None
+    samples: dict | None = None
+    availability: dict | None = None
 
 
 def _render_meta(col, geography):
@@ -3889,6 +3903,19 @@ def _fit_econ_y_pair(pair, frame, label_col):
     ols_fit = sm.OLS(y_vals, sm.add_constant(x_model)).fit()
     intercept_mle = float(ols_fit.params[0])
     slope_mle = float(ols_fit.params[1])
+    # No-hurdle continuous model: alpha_mle/beta_mle are fixed at 0.0 (no zero part).
+    # model_family + positive_part_t/p mirror pages/catalog_builder.py::_fit_continuous_pair's
+    # mle_result exactly (same ols_fit object, just reading its already-computed t/p-stats)
+    # so both continuous-fit implementations produce the same record shape.
+    mle_result = {
+        "intercept_mle": intercept_mle,
+        "slope_mle": slope_mle,
+        "alpha_mle": 0.0,
+        "beta_mle": 0.0,
+        "model_family": "continuous",
+        "positive_part_t": float(ols_fit.tvalues[1]),
+        "positive_part_p": float(ols_fit.pvalues[1]),
+    }
 
     boot_intercept_samples, boot_slope_samples = stationary_bootstrap_ols(x_model, y_vals)
     boot_alpha_samples = boot_beta_samples = None
@@ -3911,6 +3938,7 @@ def _fit_econ_y_pair(pair, frame, label_col):
         "jurisdictions": labels,
         "mcfadden_r2": None,
         "ols_rsquared": float(ols_fit.rsquared),
+        "mle_result": mle_result,
         "x_transform": "log" if x_transform == "log" else None,
     }
 
@@ -3985,6 +4013,8 @@ def fit_pairs(df_final, df_zip, df_zip_yearly_long, permit_years, *, max_pairs=N
         chart_arrays = None
         ppm_beta = None
         mle_diag = None
+        samples = None
+        availability = None
         if fit is not None:
             coeffs = {
                 "intercept_mle": fit.get("intercept_mle"),
@@ -3996,15 +4026,17 @@ def fit_pairs(df_final, df_zip, df_zip_yearly_long, permit_years, *, max_pairs=N
                 "mcfadden_r2": fit.get("mcfadden_r2"),
                 "ols_rsquared": fit.get("ols_rsquared"),
             }
+            # Hierarchical-Bayes posterior mean beta -- both fit kinds now (two_part's
+            # positive-part slope, or continuous's single OLS slope). No refit: mean of the
+            # already-computed slope_samples.
+            slope_samples = fit.get("slope_samples")
+            if slope_samples is not None:
+                ppm_beta = float(np.mean(slope_samples))
             if not is_econ_y:
-                # two_part (housing-as-Y) only: carry the already-computed hierarchical-Bayes
-                # posterior mean beta, the positive-part/zero-hurdle t/p-stats (from the raw
-                # mle_result fit_two_part_with_ci returns), and the positive-OLS companion R²
-                # (a closed-form R² of the y>0 subset against the already-fit positive-part
-                # MLE line -- no refit). None of this re-runs any fit.
-                slope_samples = fit.get("slope_samples")
-                if slope_samples is not None:
-                    ppm_beta = float(np.mean(slope_samples))
+                # two_part (housing-as-Y) only: carry the positive-part/zero-hurdle t/p-stats
+                # (from the raw mle_result fit_two_part_with_ci returns) and the positive-OLS
+                # companion R² (a closed-form R² of the y>0 subset against the already-fit
+                # positive-part MLE line -- no refit). None of this re-runs any fit.
                 mle_result = fit.get("mle_result")
                 if mle_result is not None:
                     mle_diag = {
@@ -4018,6 +4050,28 @@ def fit_pairs(df_final, df_zip, df_zip_yearly_long, permit_years, *, max_pairs=N
                 )
             x_meta = _render_meta(pair.x_col, pair.geography)
             chart_arrays = build_chart_arrays(fit, x_meta["display_label"])
+            # Retain the raw posterior/bootstrap sample arrays (both fit kinds) so
+            # consumers can build whichever view they need -- e.g. a positive-only band
+            # (intercept_samples + slope_samples*x, no hurdle term) -- instead of being
+            # limited to chart_arrays' one pre-baked hurdle band. Individually None-safe:
+            # whichever the fit actually produced rides along, the rest stay None.
+            samples = {
+                "alpha_samples": fit.get("alpha_samples"),
+                "beta_samples": fit.get("beta_samples"),
+                "intercept_samples": fit.get("intercept_samples"),
+                "slope_samples": fit.get("slope_samples"),
+                "boot_alpha_samples": fit.get("boot_alpha_samples"),
+                "boot_beta_samples": fit.get("boot_beta_samples"),
+                "boot_intercept_samples": fit.get("boot_intercept_samples"),
+                "boot_slope_samples": fit.get("boot_slope_samples"),
+            }
+            # Mirrors pages/export.py's catalog availability flags: true iff the
+            # corresponding band actually came out non-None in chart_arrays (derived from
+            # the same computation, not re-checked independently).
+            availability = {
+                "stationary_bootstrap": chart_arrays.get("boot_ci_lo") is not None,
+                "hierarchical": chart_arrays.get("bayes_ci_lo") is not None,
+            }
 
         results.append(
             PairFitResult(
@@ -4035,6 +4089,8 @@ def fit_pairs(df_final, df_zip, df_zip_yearly_long, permit_years, *, max_pairs=N
                 x_render_meta=_render_meta(pair.x_col, pair.geography),
                 ppm_beta=ppm_beta,
                 mle_diag=mle_diag,
+                samples=samples,
+                availability=availability,
             )
         )
     return results

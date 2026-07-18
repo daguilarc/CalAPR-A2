@@ -149,15 +149,29 @@ def build_mle_ci(result, x_range_raw):
             eta_mle=eta,
         )
     bayes_ci_lo, bayes_ci_hi, bayes_mean = None, None, None
-    if all(result.get(k) is not None for k in ("alpha_samples", "beta_samples", "intercept_samples", "slope_samples")):
-        alpha_s = np.asarray(result["alpha_samples"], dtype=np.float64)
-        beta_s = np.asarray(result["beta_samples"], dtype=np.float64)
-        int_s = np.asarray(result["intercept_samples"], dtype=np.float64)
-        slope_s = np.asarray(result["slope_samples"], dtype=np.float64)
+    ia, ib = result.get("alpha_samples"), result.get("beta_samples")
+    ii, is_ = result.get("intercept_samples"), result.get("slope_samples")
+    if all(s is not None for s in (ia, ib, ii, is_)):
+        alpha_s = np.asarray(ia, dtype=np.float64)
+        beta_s = np.asarray(ib, dtype=np.float64)
+        int_s = np.asarray(ii, dtype=np.float64)
+        slope_s = np.asarray(is_, dtype=np.float64)
         curves = full_two_part_curve_matrix(alpha_s, beta_s, int_s, slope_s, x_sc)
         bayes_ci_lo = np.percentile(curves, 2.5, axis=0)
         bayes_ci_hi = np.percentile(curves, 97.5, axis=0)
         bayes_mean = np.mean(curves, axis=0)
+    elif ii is not None and is_ is not None and (ia is None or ib is None):
+        # No-hurdle (continuous) case: alpha/beta samples don't exist, so fall back to
+        # the intercept/slope-only CI (same fallback ci_from_samples already offers the
+        # bootstrap branch above) instead of requiring all four samples.
+        bayes_ci_lo, bayes_ci_hi = ci_from_samples(
+            x_sc,
+            int_s=np.asarray(ii, dtype=np.float64),
+            slope_s=np.asarray(is_, dtype=np.float64),
+            psi_mle=psi,
+            eta_mle=eta,
+        )
+        bayes_mean = mle_y
     return (mle_y, boot_ci_lo, boot_ci_hi, bayes_ci_lo, bayes_ci_hi, bayes_mean)
 
 
