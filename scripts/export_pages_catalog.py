@@ -496,7 +496,13 @@ def overlay_real_maps(stage: Path) -> None:
     )
 
 
-def _full_release(stage: Path, max_pairs: int | None) -> None:
+def _full_release(
+    stage: Path,
+    max_pairs: int | None,
+    *,
+    context: dict | None = None,
+    fit_results: list | None = None,
+) -> None:
     sys.path.insert(0, str(MODELS_DIR))
     os.environ["PAGES_BUILD"] = "1"
     from pages.catalog_builder import build_pages_catalog
@@ -512,8 +518,14 @@ def _full_release(stage: Path, max_pairs: int | None) -> None:
         if source.resolve() != destination.resolve():
             shutil.copy2(source, destination)
     os.environ.setdefault("PAGES_RANDOM_SEED", str(RANDOM_SEED))
-    context = prepare_pages_context()
-    build_pages_catalog(stage, context=context, max_pairs=max_pairs, write=False)
+    # Single-process driver passes a prepared context + one shared fit_results so neither
+    # prepare_pages_context() nor fit_pairs runs again here. Standalone (both None) keeps
+    # today's behavior: prepare the pages context and let build_pages_catalog fit once.
+    if context is None:
+        context = prepare_pages_context()
+    build_pages_catalog(
+        stage, context=context, fit_results=fit_results, max_pairs=max_pairs, write=False,
+    )
     labels = enrich_chart_labels(load_chart_labels(REPO_ROOT / "docs" / "chart_labels.json"))
     registry = build_map_metric_registry(context["df_final"], labels)
     plot_frame = assemble_plot_frame(context["df_final"])
@@ -533,11 +545,21 @@ def _full_release(stage: Path, max_pairs: int | None) -> None:
     write_pages_data(stage, maps_path)
 
 
-def build_release(stage: Path, *, fixture: bool = False, max_pairs: int | None = None) -> Path:
+def build_release(
+    stage: Path,
+    *,
+    fixture: bool = False,
+    max_pairs: int | None = None,
+    context: dict | None = None,
+    fit_results: list | None = None,
+) -> Path:
     if stage.exists() and any(stage.iterdir()):
         raise FileExistsError(f"staging directory must be new or empty: {stage}")
     stage.mkdir(parents=True, exist_ok=True)
-    _fixture_release(stage) if fixture else _full_release(stage, max_pairs)
+    if fixture:
+        _fixture_release(stage)
+    else:
+        _full_release(stage, max_pairs, context=context, fit_results=fit_results)
     finalize_release_integrity(stage)
     sys.path.insert(0, str(REPO_ROOT / "scripts"))
     from verify_pages_catalog import verify_release

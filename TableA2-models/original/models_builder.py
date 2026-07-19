@@ -14,12 +14,23 @@ from acs_apr_models import (
 )
 
 
-def build_original_models(ctx):
+def build_original_models(ctx, *, fit_results=None, df_zip=None, df_zip_yearly_long=None):
     """Run Steps 12-13 + r2 diagnostics from precomputed panel context.
 
-    fit_pairs runs exactly once here; the renderers (_run_city_regressions,
-    _run_zip_regressions for fit_kind == 'two_part', _render_continuous_results for
-    fit_kind == 'continuous') only draw PNGs from its result list, never fit."""
+    Standalone (fit_results is None): builds the ZIP panel and calls fit_pairs exactly once
+    here; the renderers (_run_city_regressions, _run_zip_regressions for fit_kind ==
+    'two_part', _render_continuous_results for fit_kind == 'continuous') only draw PNGs from
+    its result list, never fit.
+
+    Single-process driver (fit_results provided): SKIP the panels_only ZIP build and the
+    internal fit_pairs call, rendering straight from the passed fit_results. df_zip /
+    df_zip_yearly_long are accepted for API symmetry with the standalone path (they are the
+    exact panels the driver already fed to fit_pairs); the render pass below
+    (_run_zip_regressions with panels_only=False) rebuilds its own ZIP frame from ctx keys +
+    fit_results and does not read them, so they are only consumed by the internal fit_pairs
+    call that this branch skips. Mirrors the context=/fit_results= pattern
+    build_pages_catalog already uses -- identical behavior to the standalone path, the only
+    difference being who computed fit_results."""
     charts_skipped_low_r2 = []
     all_r2_results = ctx["all_r2_results"]
     base_output_dir = ctx["base_output_dir"]
@@ -27,23 +38,24 @@ def build_original_models(ctx):
     city_charts_dir = base_output_dir / "Cities"
     zip_charts_dir = base_output_dir / "ZIPCodes"
 
-    # Build the ZIP panel (needed by fit_pairs) without running any regressions yet.
-    df_zip, df_zip_yearly_long, sf_zips_for_xsf = _run_zip_regressions(
-        ctx["df_apr_db_inc"],
-        ctx["df_apr_all"],
-        ctx["mf_mask_all"],
-        ctx["df_county"],
-        ctx["df_county_cbsa"],
-        ctx["df_msa"],
-        ctx["ca_county_name_to_fips"],
-        ctx["legend_note_payload"],
-        charts_skipped_low_r2,
-        all_r2_results,
-        zip_charts_dir,
-        panels_only=True,
-    )
+    if fit_results is None:
+        # Build the ZIP panel (needed by fit_pairs) without running any regressions yet.
+        df_zip, df_zip_yearly_long, sf_zips_for_xsf = _run_zip_regressions(
+            ctx["df_apr_db_inc"],
+            ctx["df_apr_all"],
+            ctx["mf_mask_all"],
+            ctx["df_county"],
+            ctx["df_county_cbsa"],
+            ctx["df_msa"],
+            ctx["ca_county_name_to_fips"],
+            ctx["legend_note_payload"],
+            charts_skipped_low_r2,
+            all_r2_results,
+            zip_charts_dir,
+            panels_only=True,
+        )
 
-    fit_results = fit_pairs(ctx["df_final"], df_zip, df_zip_yearly_long, ctx["permit_years"])
+        fit_results = fit_pairs(ctx["df_final"], df_zip, df_zip_yearly_long, ctx["permit_years"])
 
     _run_city_regressions(
         fit_results,
