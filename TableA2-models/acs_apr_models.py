@@ -3733,10 +3733,11 @@ def fit_pairs(df_final, df_zip, df_zip_yearly_long, permit_years, *, max_pairs=N
                 if pair.geography == "zip"
                 else _fit_housing_y_city(pair, df_final, permit_years)
             )
+            # Gate is OLS-only (matches econ-Y): McFadden R² is still computed and
+            # carried on the record (r2["mcfadden_r2"] below) as a displayed
+            # diagnostic, it just no longer gates band availability.
             r2_gate_passed = bool(
                 fit is not None
-                and fit.get("mcfadden_r2") is not None
-                and fit["mcfadden_r2"] >= R2_THRESHOLD_TWOPART_MCFADDEN_CHART
                 and np.isfinite(fit.get("ols_rsquared", np.nan))
                 and fit["ols_rsquared"] >= R2_OLS_POSITIVE_THRESHOLD
             )
