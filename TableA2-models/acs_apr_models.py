@@ -1212,6 +1212,10 @@ PAGES_BUILD = os.environ.get("PAGES_BUILD", "").strip().lower() in ("1", "true",
 PAGES_SKIP_HIERARCHICAL = os.environ.get("PAGES_SKIP_HIERARCHICAL", "").strip().lower() in ("1", "true", "yes")
 PAGES_RANDOM_SEED = int(os.environ.get("PAGES_RANDOM_SEED", "20240618"))
 CI_MODE = os.environ.get("CI", "").strip().lower() == "true"
+# SMC sampler core count — decoupled from PAGES_BUILD (which only gates cached-input behavior).
+# Multi-core does not affect what the release manifest hashes (code + inputs + catalog key coverage),
+# so the release verifies identically at any core count. Default 4; tune via ACS_APR_SMC_CORES.
+SMC_CORES = int(os.environ.get("ACS_APR_SMC_CORES", "4"))
 
 # Configuration
 NHGIS_API_BASE = "https://api.ipums.org"
@@ -3133,7 +3137,7 @@ def _hierarchical_year_county_smc(x_std, y_obs, county_idx, n_counties, x_mean, 
         pm.Normal('y', mu=mu, sigma=sigma_obs, observed=y_obs)
         try:
             idata = pm.sample_smc(
-                draws=n_draws, chains=4, cores=1 if PAGES_BUILD else 4,
+                draws=n_draws, chains=4, cores=SMC_CORES,
                 random_seed=PAGES_RANDOM_SEED, progressbar=True, compute_convergence_checks=False,
             )
             intercept_std = idata.posterior['intercept_pop'].values.flatten()
@@ -3182,7 +3186,7 @@ def _hierarchical_full_two_part_smc(x_arr, y_rate_arr, county_idx, n_counties, x
             sigma_obs = pm.HalfNormal('sigma_obs', sigma=1)
             pm.Normal('y_pos', mu=mu_pos, sigma=sigma_obs, observed=y_obs_pos)
             idata = pm.sample_smc(
-                draws=n_draws, chains=4, cores=1 if PAGES_BUILD else 4,
+                draws=n_draws, chains=4, cores=SMC_CORES,
                 random_seed=PAGES_RANDOM_SEED, progressbar=True, compute_convergence_checks=False,
             )
         alpha_s = idata.posterior['alpha'].values.flatten()
