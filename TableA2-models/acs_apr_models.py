@@ -2313,8 +2313,9 @@ def plot_two_part_chart(x_scatter, y_scatter, x_line, mle_y, output_path,
                         positive_line_y=None, positive_ols_r2=None,
                         legend_exclusion_note=None, mle_beta=None, ppm_beta=None,
                         continuous_y=False, y_tick_percent=False):
-    """Unified two-part regression chart. Scatter always filtered to y > 0.
-    x_scatter, y_scatter: raw data arrays (same length; y=0 rows excluded from scatter).
+    """Unified two-part regression chart. Main path (positive_ols_simple=False) scatter keeps
+    ALL observations, including y=0, since the outcome is a rate >= 0; ylim floors at 0.
+    x_scatter, y_scatter: raw data arrays (same length).
     x_line, mle_y: MLE curve arrays in display space.
     boot_ci_lo/hi: stationary MC (two-part MLE refits); bayes_ci_lo/hi: hierarchical SMC when available.
     bayes_mean: if not None, plot posterior predictive mean line (Hierarchical Bayes).
@@ -2436,7 +2437,9 @@ def plot_two_part_chart(x_scatter, y_scatter, x_line, mle_y, output_path,
 
     setup_chart_style()
     fig, ax = _fig_ax_square_plot()
-    nz = y_scatter > 0
+    # Keep all observations (including y=0) in the main two-part scatter -- the rate-per-1000
+    # outcome is >= 0 so ylim starting at 0 (below) still shows the zero-value jurisdictions.
+    nz = np.ones(len(y_scatter), dtype=bool)
     x_nz, y_nz = x_scatter[nz], y_scatter[nz]
     labels_nz = labels[nz] if labels is not None else None
     scatter_suffix = f'n={len(x_scatter)}'

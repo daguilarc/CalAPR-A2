@@ -187,7 +187,7 @@
       if(!pair){clearModelChart("This combination was not exported (insufficient jurisdictions or missing yearly data). Choose another pair.");return}
       const viewName=viewKeyForPair(pair),view=pair.views[viewName],display=byId("model-display").value;
       if(!view){clearModelChart("This combination was not exported (insufficient jurisdictions or missing yearly data). Choose another pair.");return}
-      const keepZeros=viewName==="two_part_hurdle",obs=pair.observations,idx=obs.y.map((y,i)=>[y,i]).filter(([y])=>keepZeros||y>0).map(([,i])=>i);
+      const keepZeros=viewName==="two_part_hurdle"||pair.model_family==="continuous",obs=pair.observations,idx=obs.y.map((y,i)=>[y,i]).filter(([y])=>keepZeros||y>0).map(([,i])=>i);
       const names=idx.map(i=>obs.labels?.[i]).filter(Boolean);
       const scatter={x:idx.map(i=>obs.x[i]),y:idx.map(i=>obs.y[i]),mode:"markers",type:"scatter",name:observationLegendName(pair),marker:{color:idx.map(i=>obs.y[i]===0?"#777":"#222")}};
       if(names.length===idx.length){scatter.text=names;scatter.hovertemplate="%{text}<br>(%{x}, %{y})<extra></extra>"}
