@@ -3587,8 +3587,33 @@ def _fit_housing_y_zip(pair, df_zip, df_zip_yearly_long):
     )
 
 
+def _x_col_is_housing(x_col, geography):
+    """Provenance membership check for x_col: HOUSING_META vs ECON_META, resolved
+    the exact same way _render_meta resolves display metadata (ECON_META lookup
+    first, else parse_city_outcome/parse_zip_outcome -> HOUSING_META[dr_type]) --
+    never a name heuristic. Pairs are strictly bipartite by construction
+    (_emit_directed_pairs), so any x_col not in ECON_META is expected to parse as a
+    HOUSING_META column; a column that is neither raises via the parser, which is
+    intentional (fail loud rather than silently mis-normalize)."""
+    if x_col in ECON_META:
+        return False
+    from pages.pair_registry import parse_city_outcome, parse_zip_outcome
+
+    parser = parse_zip_outcome if geography == "zip" else parse_city_outcome
+    dr_type, _cat_suffix = parser(x_col)
+    return dr_type in HOUSING_META
+
+
 def _fit_econ_y_pair(pair, frame, label_col):
-    """Continuous OLS fit for an econ-as-Y pair (x_col is the housing side)."""
+    """Continuous OLS fit for an econ-as-Y pair (x_col is the housing side).
+
+    x_col is population-rate-normalized via the same _rate_per_1000 helper (and the
+    same 'population' column) the housing-as-Y path uses (fit_two_part_with_ci's
+    y_is_rate branch / _fit_housing_y_zip's precomputed y_rate), so a housing
+    variable takes identical values whether it is playing the outcome role (Y, two-
+    part) or the predictor role (X, here). Econ x_cols are left untouched -- they are
+    already ratios/percentages, not raw counts."""
+    x_is_housing = _x_col_is_housing(pair.x_col, pair.geography)
     if _has_predictor_meta(pair.x_col):
         x_fit_mask_kind = _predictor_fit_mask_kind(pair.x_col)
         x_transform = "log" if _predictor_is_log_x(pair.x_col) else "identity"
@@ -3607,6 +3632,20 @@ def _fit_econ_y_pair(pair, frame, label_col):
         & np.isfinite(np.asarray(frame[pair.y_col].values, dtype=np.float64))
     )
     mask = (valid_x & valid_y).values
+    if x_is_housing:
+        if "population" not in frame.columns:
+            raise RuntimeError(
+                f"_fit_econ_y_pair: housing x_col {pair.x_col!r} (geography="
+                f"{pair.geography!r}) needs a 'population' column for per-1000-pop "
+                f"normalization (to match the housing-as-Y path), but the frame "
+                f"passed to fit_pairs lacks one. Refusing to silently fit on raw "
+                f"counts -- wire 'population' through for this geography."
+            )
+        # Mirror the housing-Y path's population validity requirement (fit_two_part_with_ci's
+        # valid_totals / _fit_housing_y_zip's pop_ok): a row with missing/zero population
+        # can't be rate-normalized, so it must drop out of BOTH directions the same way.
+        pop_valid = frame["population"].notna() & (frame["population"] > 0)
+        mask = mask & pop_valid.values
     if pair.requires_msa:
         mask = mask & frame["msa_income"].notna().values
 
@@ -3614,7 +3653,13 @@ def _fit_econ_y_pair(pair, frame, label_col):
     if len(df_v) < pair.min_jurisdictions:
         return None
 
-    x_raw = np.asarray(df_v[pair.x_col].values, dtype=np.float64)
+    if x_is_housing:
+        x_raw = np.asarray(
+            _rate_per_1000(df_v[pair.x_col].values, df_v["population"].values),
+            dtype=np.float64,
+        )
+    else:
+        x_raw = np.asarray(df_v[pair.x_col].values, dtype=np.float64)
     y_vals = np.asarray(df_v[pair.y_col].values, dtype=np.float64)
     x_model = np.log(np.maximum(x_raw, 1e-300)) if x_transform == "log" else x_raw
 
@@ -3665,14 +3710,29 @@ def _econ_y_county_hierarchical_ci(pair, frame):
     """County-hierarchical Bayes CI for an econ-as-Y pair, on the jurisdiction
     cross-section (one row per jurisdiction: x_col, y_col, county) -- the same frame
     the OLS point estimate (_fit_econ_y_pair) is fit on. Best-effort: None if the
-    frame lacks the needed columns."""
+    frame lacks the needed columns.
+
+    When x_col is housing, it is rate-normalized here the same way _fit_econ_y_pair
+    normalizes it, so the CI band this produces stays on the same scale as the OLS
+    point estimate it's a companion to (otherwise the band would be fit on raw counts
+    while the point estimate is fit on a per-1000-pop rate -- a scale mismatch)."""
     if frame is None or frame.empty:
         return None
     if not {"county", pair.x_col, pair.y_col}.issubset(frame.columns):
         return None
-    x_transform = "log" if (_has_predictor_meta(pair.x_col) and _predictor_is_log_x(pair.x_col)) else "identity"
+    x_col = pair.x_col
+    if _x_col_is_housing(x_col, pair.geography):
+        if "population" not in frame.columns:
+            return None
+        pop_valid = frame["population"].notna() & (frame["population"] > 0)
+        frame = frame[pop_valid]
+        if frame.empty:
+            return None
+        frame = frame.copy()
+        frame[x_col] = _rate_per_1000(frame[x_col].values, frame["population"].values)
+    x_transform = "log" if (_has_predictor_meta(x_col) and _predictor_is_log_x(x_col)) else "identity"
     return hierarchical_ci_transformed(
-        frame, pair.x_col, pair.y_col,
+        frame, x_col, pair.y_col,
         x_transform=x_transform, y_transform="identity", county_col="county",
     )
 
@@ -3786,7 +3846,12 @@ def fit_pairs(df_final, df_zip, df_zip_yearly_long, permit_years, *, max_pairs=N
                     fit["x_data"], fit["y_data"], fit["intercept_mle"], fit["slope_mle"],
                 )
             x_meta = _render_meta(pair.x_col, pair.geography)
-            chart_arrays = build_chart_arrays(fit, x_meta["display_label"])
+            # Housing x_col is per-1000-pop rate-normalized (see _fit_econ_y_pair), so the
+            # axis label must say so -- mirrors the housing-as-Y label at the PNG renderer.
+            x_axis_label = x_meta["display_label"]
+            if _x_col_is_housing(pair.x_col, pair.geography):
+                x_axis_label = f"{x_axis_label} per 1000 pop"
+            chart_arrays = build_chart_arrays(fit, x_axis_label)
             # Retain the raw posterior/bootstrap sample arrays (both fit kinds) so
             # consumers can build whichever view they need -- e.g. a positive-only band
             # (intercept_samples + slope_samples*x, no hurdle term) -- instead of being
