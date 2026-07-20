@@ -58,6 +58,8 @@ def save_chart(fig, filename):
     output_path = OUTPUT_DIR / filename
     for ax in fig.axes:
         _prune_origin_ticks(ax)
+        if ax.get_ylabel().endswith("Dwelling Units"):
+            format_y_axis_units_commas(ax)
     fig.savefig(output_path, dpi=150, bbox_inches='tight', facecolor='white', edgecolor='none')
     plt.close(fig)
     print(f"  Saved: {output_path}")
@@ -77,6 +79,17 @@ def set_y_padding(ax, top_pct=0.08):
 def format_y_axis_units_commas(ax):
     """Comma thousands on y-axis ticks for raw unit counts."""
     ax.yaxis.set_major_formatter(StrMethodFormatter('{x:,.0f}'))
+
+
+def style_unit_count_yaxis(ax, ylabel="Dwelling Units"):
+    """Unit-count charts: ylabel only; commas applied post-prune in save_chart."""
+    ax.set_ylabel(ylabel)
+
+
+def legend_label_with_annual_avg(name, yearly_values):
+    """Two-line legend label: category name + mean of plotted yearly values."""
+    mean = float(yearly_values.mean())
+    return f"{name}\navg {mean:,.0f}/yr"
 
 
 def _prune_origin_ticks(ax, eps=1e-9):
@@ -163,8 +176,7 @@ def _plot_income_units_vertical_stacked_bars(
         ha='right',
     )
     ax.tick_params(axis='x', pad=4)
-    ax.set_ylabel('Units')
-    format_y_axis_units_commas(ax)
+    style_unit_count_yaxis(ax)
     ax.set_title(
         f'Income tier mix and total units by unit type ({year_range_label})\n{stage_display_name} stage',
     )
@@ -289,11 +301,14 @@ def _plot_dr_income_tier_groups(df, years, dr_tier_groups, income_tier_structure
             agg_data = {col: sub.groupby('YEAR')[col].sum().reindex(years).fillna(0) for col, _, _, _ in col_specs}
             fig, ax = plt.subplots(figsize=(10, 6))
             for i, (col, label, color, ls) in enumerate(col_specs):
-                ax.plot(years, agg_data[col], marker=MARKERS[i], linestyle=ls, color=color, linewidth=1.5, markersize=5, label=label)
+                ax.plot(
+                    years, agg_data[col], marker=MARKERS[i], linestyle=ls, color=color,
+                    linewidth=1.5, markersize=5,
+                    label=legend_label_with_annual_avg(label, agg_data[col]),
+                )
             ax.set_title(f'{title_prefix} {title_type} by Income Tier and Deed Restriction')
             ax.set_xlabel('Year')
-            ax.set_ylabel('Units')
-            format_y_axis_units_commas(ax)
+            style_unit_count_yaxis(ax)
             ax.set_xticks(years)
             ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=4, handlelength=4)
             ax.set_xlim(min(years), max(years))
@@ -374,8 +389,7 @@ def main():
 
     ax.set_title('Building Permits, Completions, and Entitlements\n(net of demolitions)')
     ax.set_xlabel('Year')
-    ax.set_ylabel('Units')
-    format_y_axis_units_commas(ax)
+    style_unit_count_yaxis(ax)
     ax.set_xticks(years)
     ax.legend(loc='best')
     ax.set_xlim(min(years), max(years))
@@ -384,50 +398,52 @@ def main():
     save_chart(fig, 'permits_builds_total.png')
 
     # =============================================================================
-    # tenure_total_cos.png and tenure_total_bp.png
+    # tenure_total_cos.png / tenure_total_bp.png (+ _mfh variants)
     # Completions/Permits by tenure type (filled line graph)
     # =============================================================================
 
     df = _derive_tenure_flags(df)
+    df, mfh_mask = _derive_dr_type_flags(df)
 
     tenure_specs = [
         ('co_net', 'Completions', 'tenure_total_cos.png'),
         ('bp_net', 'Building Permits', 'tenure_total_bp.png'),
     ]
-
+    tenure_variants = [
+        (None, 'All Housing ', ''),
+        (mfh_mask, 'Multifamily ', '_mfh'),
+    ]
     for net_col, title_type, filename in tenure_specs:
-        next_chart(filename)
-    
-        agg_owner = df[df['is_owner']].groupby('YEAR')[net_col].sum().reindex(years).fillna(0)
-        agg_rental = df[df['is_rental']].groupby('YEAR')[net_col].sum().reindex(years).fillna(0)
-    
-        fig, ax = plt.subplots(figsize=(8, 5))
-    
-        # Stacked area (filled line graph)
-        ax.fill_between(years, 0, agg_owner, alpha=0.7, color=COLORS['blue'], label='Owner Occupant')
-        ax.fill_between(years, agg_owner, agg_owner + agg_rental, alpha=0.7, color=COLORS['orange'], label='Rental')
-    
-        # Add lines on top for clarity
-        ax.plot(years, agg_owner, color=COLORS['blue'], linewidth=1.5)
-        ax.plot(years, agg_owner + agg_rental, color=COLORS['orange'], linewidth=1.5)
-    
-        ax.set_title(f'{title_type} by Tenure Type\n(net of demolitions)')
-        ax.set_xlabel('Year')
-        ax.set_ylabel('Units')
-        format_y_axis_units_commas(ax)
-        ax.set_xticks(years)
-        ax.legend(loc='upper left')
-        ax.set_xlim(min(years), max(years))
-        ax.set_ylim(bottom=0)
-    
-        save_chart(fig, filename)
+        for variant_mask, title_prefix, file_suffix in tenure_variants:
+            out_filename = filename.replace('.png', f'{file_suffix}.png')
+            next_chart(out_filename)
+            sub = df if variant_mask is None else df[variant_mask]
+            agg_owner = sub[sub['is_owner']].groupby('YEAR')[net_col].sum().reindex(years).fillna(0)
+            agg_rental = sub[sub['is_rental']].groupby('YEAR')[net_col].sum().reindex(years).fillna(0)
+            fig, ax = plt.subplots(figsize=(8, 5))
+            ax.fill_between(
+                years, 0, agg_owner, alpha=0.7, color=COLORS['blue'],
+                label=legend_label_with_annual_avg('Owner Occupant', agg_owner),
+            )
+            ax.fill_between(
+                years, agg_owner, agg_owner + agg_rental, alpha=0.7, color=COLORS['orange'],
+                label=legend_label_with_annual_avg('Rental', agg_rental),
+            )
+            ax.plot(years, agg_owner, color=COLORS['blue'], linewidth=1.5)
+            ax.plot(years, agg_owner + agg_rental, color=COLORS['orange'], linewidth=1.5)
+            ax.set_title(f'{title_prefix}{title_type} by Tenure Type\n(net of demolitions)')
+            ax.set_xlabel('Year')
+            style_unit_count_yaxis(ax, ylabel="Total Dwelling Units")
+            ax.set_xticks(years)
+            ax.legend(loc='upper left')
+            ax.set_xlim(min(years), max(years))
+            ax.set_ylim(bottom=0)
+            save_chart(fig, out_filename)
 
     # =============================================================================
     # db_vs_inc_cos.png, db_vs_inc_bp.png, and db_vs_inc_ent.png
     # Completions/Permits/Entitlements by deed restriction type
     # =============================================================================
-
-    df, mfh_mask = _derive_dr_type_flags(df)
 
     db_inc_specs = [
         ('co_net', 'Completions', 'db_vs_inc_cos.png'),
@@ -470,8 +486,7 @@ def main():
                 )
             ax.set_title(f'{title_prefix}Housing {title_type}, Net of Demolitions')
             ax.set_xlabel('Year')
-            ax.set_ylabel('Units')
-            format_y_axis_units_commas(ax)
+            style_unit_count_yaxis(ax)
             ax.set_xticks(years)
             ax.legend(loc='best')
             ax.set_xlim(min(years), max(years))
@@ -513,17 +528,20 @@ def main():
         fig, ax = plt.subplots(figsize=(10, 6))
     
         for i, (tier_suffix, tier_label, tier_color) in enumerate(income_tier_defs):
+            owner_series = agg_data[(tier_suffix, 'owner')]
+            rental_series = agg_data[(tier_suffix, 'rental')]
             # For-Sale (solid)
-            ax.plot(years, agg_data[(tier_suffix, 'owner')], marker=MARKERS[i], linestyle='-',
-                    color=tier_color, linewidth=2, markersize=5, label=f'{tier_label} (For-Sale)')
+            ax.plot(years, owner_series, marker=MARKERS[i], linestyle='-',
+                    color=tier_color, linewidth=2, markersize=5,
+                    label=legend_label_with_annual_avg(f'{tier_label} (For-Sale)', owner_series))
             # Rental (dashed)
-            ax.plot(years, agg_data[(tier_suffix, 'rental')], marker=MARKERS[i], linestyle='--',
-                    color=tier_color, linewidth=2, markersize=5, label=f'{tier_label} (Rental)')
+            ax.plot(years, rental_series, marker=MARKERS[i], linestyle='--',
+                    color=tier_color, linewidth=2, markersize=5,
+                    label=legend_label_with_annual_avg(f'{tier_label} (Rental)', rental_series))
     
         ax.set_title(f'Affordable {title_type} by Income Category and Tenure')
         ax.set_xlabel('Year')
-        ax.set_ylabel('Units')
-        format_y_axis_units_commas(ax)
+        style_unit_count_yaxis(ax)
         ax.set_xticks(years)
         ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=3, handlelength=4)
         ax.set_xlim(min(years), max(years))
@@ -604,13 +622,15 @@ def main():
         # Create chart
         fig, ax = plt.subplots(figsize=(8, 5))
         for i, (tier_suffix, tier_label, tier_color) in enumerate(income_tier_combined):
-            ax.plot(years, agg_data[tier_label], marker=MARKERS[i], 
-                    color=tier_color, linewidth=2, markersize=6, label=tier_label)
+            ax.plot(
+                years, agg_data[tier_label], marker=MARKERS[i],
+                color=tier_color, linewidth=2, markersize=6,
+                label=legend_label_with_annual_avg(tier_label, agg_data[tier_label]),
+            )
     
         ax.set_title(f'{dr_label} {title_type} by Income Tier')
         ax.set_xlabel('Year')
-        ax.set_ylabel('Units')
-        format_y_axis_units_commas(ax)
+        style_unit_count_yaxis(ax)
         ax.set_xticks(years)
         ax.legend(loc='best')
         ax.set_xlim(min(years), max(years))
@@ -664,16 +684,11 @@ def main():
     ]
     tier_labels = [label for _, label, _ in tiers]
     dr_ndr_specs = [
-        ('', 'entitlement', 'Entitlement units', 'dr_vs_ndr_ent.png'),
-        ('BP_', 'building permits', 'Building permit units', 'dr_vs_ndr_bp.png'),
-        ('CO_', 'completions', 'Completion units', 'dr_vs_ndr_cos.png'),
+        ('', 'entitlement', 'dr_vs_ndr_ent.png'),
+        ('BP_', 'building permits', 'dr_vs_ndr_bp.png'),
+        ('CO_', 'completions', 'dr_vs_ndr_cos.png'),
     ]
-    dr_ndr_stage_y_labels = {
-        'entitlement': 'entitled',
-        'building permits': 'permitted',
-        'completions': 'occupied',
-    }
-    for prefix, stage_name, ylabel, filename in dr_ndr_specs:
+    for prefix, stage_name, filename in dr_ndr_specs:
         next_chart(filename)
         dr_vals = [df[f'{prefix}{t}_DR'].sum() for t, _, _ in tiers]
         ndr_vals = [df[f'{prefix}{t}_NDR'].sum() for t, _, _ in tiers]
@@ -683,8 +698,7 @@ def main():
         ax.bar(x + 0.175, ndr_vals, 0.35, label='Non-deed-restricted (NDR)', color=COLORS['orange'])
         ax.set_xticks(x)
         ax.set_xticklabels(tier_labels)
-        ax.set_ylabel(f'{dr_ndr_stage_y_labels[stage_name].capitalize()} units')
-        format_y_axis_units_commas(ax)
+        style_unit_count_yaxis(ax)
         ax.set_title(f'Deed-Restricted vs Non-Deed-Restricted by Income Tier\n({stage_name})')
         ax.legend(loc='best')
         ax.set_ylim(bottom=0)
@@ -736,13 +750,15 @@ def main():
             fig, ax = plt.subplots(figsize=(8, 5))
         
             for i, (tier_suffix, tier_label, tier_color) in enumerate(income_line_tiers):
-                ax.plot(years, agg_tiers[tier_suffix], marker=MARKERS[i], linestyle='-',
-                        color=tier_color, linewidth=2, markersize=6, label=tier_label)
+                ax.plot(
+                    years, agg_tiers[tier_suffix], marker=MARKERS[i], linestyle='-',
+                    color=tier_color, linewidth=2, markersize=6,
+                    label=legend_label_with_annual_avg(tier_label, agg_tiers[tier_suffix]),
+                )
         
             ax.set_title(f'{dr_label} {tenure_label} {title_type} by Income Tier')
             ax.set_xlabel('Year')
-            ax.set_ylabel('Units')
-            format_y_axis_units_commas(ax)
+            style_unit_count_yaxis(ax)
             ax.set_xticks(years)
             ax.legend(loc='upper left')
             ax.set_xlim(min(years), max(years))
