@@ -41,6 +41,28 @@ test("APR explorer separates Maps and Models controls", async ({ page }) => {
       width: 0.45,
     },
   });
+  await expect.poll(async () => {
+    return page.locator("#map-chart").evaluate((node) => {
+      const plot = node as HTMLDivElement & {
+        _fullLayout?: { mapbox?: { _subplot?: { map?: { loaded?: () => boolean; style?: { _order?: string[] } } } } };
+      };
+      const map = plot._fullLayout?.mapbox?._subplot?.map;
+      const canvas = node.querySelector("canvas.mapboxgl-canvas") as HTMLCanvasElement | null;
+      const layerIds = map?.style?._order ? [...map.style._order] : [];
+      return {
+        loaded: map?.loaded?.() === true,
+        canvasW: canvas?.clientWidth ?? 0,
+        canvasH: canvas?.clientHeight ?? 0,
+        hasFillLayer: layerIds.some((id) => id.includes("fill")),
+      };
+    });
+  }).toMatchObject({ loaded: true, hasFillLayer: true });
+  const mapPaint = await page.locator("#map-chart").evaluate((node) => {
+    const canvas = node.querySelector("canvas.mapboxgl-canvas") as HTMLCanvasElement | null;
+    return { canvasW: canvas?.clientWidth ?? 0, canvasH: canvas?.clientHeight ?? 0 };
+  });
+  expect(mapPaint.canvasW).toBeGreaterThan(100);
+  expect(mapPaint.canvasH).toBeGreaterThan(100);
 
   await page.locator("#tab-models").click();
   await expect(page.locator("#tab-models")).toHaveClass(/active/);
