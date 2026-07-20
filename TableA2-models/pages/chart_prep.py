@@ -14,12 +14,6 @@ ZHVI_TIERS = (
     {"label": "All Homes (SFR+Condo)", "pca_index_name": "Zillow Home Value Index (All Homes (SFR+Condo))"},
 )
 
-ZORI_AFFORD_X_LABEL = f"(Dec. 2024 ZORI / MSA median household income ({ACS_5YR_MHI_DENOM_LABEL}))%"
-ZORI_PCT_AFFORD_X_LABEL = (
-    "ΔZORI (Zillow Observed Rent Index) / MSA median household income (%)\n"
-    "Real 2024 dollars"
-)
-
 
 def _zhvi_afford_label(tier_label: str) -> str:
     return (
