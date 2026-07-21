@@ -9,7 +9,7 @@ Single structured chart-label source for website, notebook, and map registry sur
 
 The repository SHALL store predictor labels, outcome labels, ACS year range, and rate suffix in source-controlled `docs/chart_labels.json`.
 
-`docs/index.html`, `notebooks/apr_explorer.ipynb`, and `TableA2-models/map_metric_registry.py` SHALL read that file rather than maintaining duplicate dictionaries or parsing labels from JavaScript source text.
+`docs/index.html`, `notebooks/apr_explorer.ipynb`, and `TableA2-models/pages/map_metric_registry.py` SHALL read that file rather than maintaining duplicate dictionaries or parsing labels from JavaScript source text.
 
 The immutable `HCD APR data: 2018–2024` header text and authored Census/Zillow footer provenance SHALL remain literal HTML and SHALL NOT be moved into this mutable label registry.
 

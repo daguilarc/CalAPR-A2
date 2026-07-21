@@ -67,6 +67,8 @@ The legacy standalone five-PNG map command is fully offline. It additionally req
 
 Catalog keys use `geography:y_col:x_col:robustness`. Model display and zero-value choices select nested archived summaries and never refit.
 
+Three additional flags on `scripts/export_pages_catalog.py` support maps-only and finalize-only rebuilds without a full refit: `--overlay-real-maps <staging-dir>` regenerates `maps.geojson`/`map_metrics.json`/`chart_labels.json`/`map_formula_audit.json` from the prepared panel against an EXISTING staged catalog (no `fit_pairs`, no model fitting); `--finalize-existing <staging-dir>` re-prunes and re-hashes an already-staged release without restamping the host Python runtime; `--force` (on the main build path) replaces an already-deployed release via a guarded swap (the prior release is restored automatically if the copy fails) instead of refusing outright.
+
 ## Build to Playwright pipeline
 
 For the release gate and CI checks, run the pipeline in this order:

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Generate charts from parsefilter repair cleaned APR data.
 
-Prerequisite: run tablea2_parsefilter_repair.py in the parent directory so
-tablea2_cleaned_parsefilter_repair.csv exists (same artifact ACS join uses).
+Runs tablea2_parsefilter_repair.py (repo root) automatically if its cleaned
+output isn't already present there (same artifact ACS join uses) -- no
+separate manual prerequisite step.
 
 Charts are numbered sequentially in output; see chart_counter below.
 
@@ -10,16 +11,23 @@ Color scheme: blue, orange, purple, gray (colorblind-friendly)
 Style: Excel-like, simple and clean
 """
 
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator, MaxNLocator, StrMethodFormatter
 from pathlib import Path
 
-# Paths: repair output lives in CSVparse_hcd_apr/ (parent of TableA2-charts/)
+# Paths: repair runs against and reads from CSVparse_hcd_apr/ (parent of TableA2-charts/)
 _DATA_ROOT = Path(__file__).resolve().parent.parent
 DATA_PATH = _DATA_ROOT / "tablea2_cleaned_parsefilter_repair.csv"
 OUTPUT_DIR = Path(__file__).parent
+
+if not DATA_PATH.exists():
+    sys.path.insert(0, str(_DATA_ROOT))
+    from tablea2_parsefilter_repair import run_repair
+    print(f"{DATA_PATH.name} not found -- running parsefilter repair against {_DATA_ROOT}")
+    run_repair(base_dir=_DATA_ROOT, output_dir=_DATA_ROOT)
 
 # Color scheme (colorblind-friendly)
 COLORS = {

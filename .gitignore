@@ -1,4 +1,3 @@
-TableA2-ACSjoin/tablea2.csv
 # * = any filename; ** = any directory depth
 **/__pycache__/
 **/tablea2.csv
@@ -55,3 +54,8 @@ Chase_*.pdf
 # Local release backups: keep on disk, exclude from repo
 docs/data/releases/*.bak-*/
 docs/data/releases/_backups/
+
+# Local-only Python test suite (kept on disk, not published)
+tests/
+TableA2-models/test_pair_registry.py
+TableA2-models/r2_diagnostics_filtered_both_model_types_two_coeffs.tsv
