@@ -457,14 +457,17 @@ def main():
         ('has_inc_only', 'Non-Bonus Inclusionary', '^', 'purple'),
     ]
 
-    # Variants: (row_mask_or_none, title_prefix, filename_suffix); None = all rows
+    # Variants: (row_mask_or_none, category_label, filename_suffix); None mask = all rows.
+    # The For-Sale variants additionally filter to owner-occupant (is_owner) tenure.
     db_inc_variants = [
-        (None, '', ''),
-        (mfh_mask, 'Multifamily ', '_mfh'),
+        (None, 'Housing', ''),
+        (mfh_mask, 'Multifamily Housing', '_mfh'),
+        (df['is_owner'], 'All For-Sale', '_forsale'),
+        (mfh_mask & df['is_owner'], 'Multifamily For-Sale', '_mfh_forsale'),
     ]
 
     for net_col, title_type, filename in db_inc_specs:
-        for variant_mask, title_prefix, file_suffix in db_inc_variants:
+        for variant_mask, category_label, file_suffix in db_inc_variants:
             out_filename = filename.replace('.png', f'{file_suffix}.png')
             next_chart(out_filename)
             sub = df if variant_mask is None else df[variant_mask]
@@ -484,7 +487,7 @@ def main():
                     markersize=6,
                     label=series_label,
                 )
-            ax.set_title(f'{title_prefix}Housing {title_type}, Net of Demolitions')
+            ax.set_title(f'{category_label} {title_type}, Net of Demolitions')
             ax.set_xlabel('Year')
             style_unit_count_yaxis(ax)
             ax.set_xticks(years)
