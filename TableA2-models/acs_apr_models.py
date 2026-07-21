@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import warnings
 from itertools import product
 from collections import defaultdict
@@ -153,6 +154,22 @@ ZIP_XSF_EXCLUDE = {'94102', '94103', '94105'}
 CITY_XSF_EXCLUDE = {'SAN FRANCISCO'}
 # Hash subsample: exclude jurisdictions/ZIPs where hash(key) % HOLDOUT_MODULUS == 0 (~20% holdout)
 HOLDOUT_MODULUS = 5
+
+
+def holdout_dropped(stable_id, modulus=HOLDOUT_MODULUS):
+    return int(hashlib.md5(str(stable_id).encode()).hexdigest(), 16) % modulus == 0
+
+
+def apply_randhash_holdout(frame, label_col, modulus=HOLDOUT_MODULUS):
+    keep = ~frame[label_col].astype(str).map(lambda v: holdout_dropped(v, modulus))
+    return frame[keep].copy()
+
+
+def _holdout_if_randhash(frame, label_col, robustness):
+    if robustness != "randhash":
+        return frame
+    return apply_randhash_holdout(frame, label_col, HOLDOUT_MODULUS)
+
 # Geography strings for R² diagnostics (single source; used in table/CSV)
 GEOGRAPHY_CITY = "City"
 GEOGRAPHY_ZIP = "ZIP codes"
@@ -2295,6 +2312,21 @@ def _affordable_dr_only_colnames(tier_cols):
     return [c for c in tier_cols if "_DR" in c and "_NDR" not in c]
 
 
+def _draw_ppm_line(ax, x_line, bayes_mean, ppm_beta):
+    """Draw the Posterior Predictive Mean (Hierarchical Bayes) overlay on ax; return the line
+    handle, or None when bayes_mean is absent. Single source for BOTH chart paths (the two-part
+    main path and the positive-OLS/continuous branch) so the PPM overlay is not model-type-
+    divergent (omni §8/§5)."""
+    if bayes_mean is None:
+        return None
+    ppm_beta_str = _format_beta_for_legend(ppm_beta)
+    handle, = ax.plot(
+        x_line, bayes_mean, color='#C04060', linewidth=2, linestyle='-',
+        label=f'Posterior Predictive Mean\n(Hierarchical Bayes)\nβ = {ppm_beta_str}',
+    )
+    return handle
+
+
 def plot_two_part_chart(x_scatter, y_scatter, x_line, mle_y, output_path,
                         x_label, y_label, data_label=CHART_LEGEND_GEO_CITY, apr_year_range='2018-2024',
                         r2=0.0, ols_r2=None,
@@ -2347,6 +2379,7 @@ def plot_two_part_chart(x_scatter, y_scatter, x_line, mle_y, output_path,
             x_line, y_ols_line, color='#1d4ed8', linewidth=2,
             label=line_label,
         )
+        ppm_handle = _draw_ppm_line(ax, x_line, bayes_mean, ppm_beta)
         ci_patch = (
             _draw_ci_bands_on_ax(ax, x_line, boot_ci_lo, boot_ci_hi, bayes_ci_lo, bayes_ci_hi)
             if continuous_y else None
@@ -2392,7 +2425,7 @@ def plot_two_part_chart(x_scatter, y_scatter, x_line, mle_y, output_path,
         ax.set_xlabel(x_label)
         ax.set_ylabel(y_label)
         ax.set_title('')
-        handles = [ols_line_handle]
+        handles = [ols_line_handle] + ([ppm_handle] if ppm_handle is not None else [])
         if ci_patch is not None:
             handles += ci_patch if isinstance(ci_patch, list) else [ci_patch]
         handles += [scatter_handle] + ([r2_ols_handle] if r2_ols_handle is not None else [])
@@ -2442,13 +2475,7 @@ def plot_two_part_chart(x_scatter, y_scatter, x_line, mle_y, output_path,
         x_line, mle_y, color='#4472C4', linewidth=2,
         label=f'Maximum Likelihood Estimation\n(Zero-Hurdle OLS)\nβ = {mle_beta_str}',
     )
-    bayes_mean_handle = None
-    if bayes_mean is not None:
-        ppm_beta_str = _format_beta_for_legend(ppm_beta)
-        bayes_mean_handle, = ax.plot(
-            x_line, bayes_mean, color='#C04060', linewidth=2, linestyle='-',
-            label=f'Posterior Predictive Mean\n(Hierarchical Bayes)\nβ = {ppm_beta_str}',
-        )
+    bayes_mean_handle = _draw_ppm_line(ax, x_line, bayes_mean, ppm_beta)
     ci_patch = _draw_ci_bands_on_ax(ax, x_line, boot_ci_lo, boot_ci_hi, bayes_ci_lo, bayes_ci_hi)
     scatter_label = f'{data_label}\n({scatter_suffix})'
     if legend_exclusion_note:
@@ -3750,6 +3777,7 @@ def fit_pairs(df_final, df_zip, df_zip_yearly_long, permit_years, *, max_pairs=N
         if is_econ_y:
             frame = df_zip if pair.geography == "zip" else df_final
             label_col = "zipcode" if pair.geography == "zip" else "JURISDICTION"
+            frame = _holdout_if_randhash(frame, label_col, pair.robustness)
             fit = _fit_econ_y_pair(pair, frame, label_col)
             r2_gate_passed = bool(
                 fit is not None
@@ -3771,11 +3799,13 @@ def fit_pairs(df_final, df_zip, df_zip_yearly_long, permit_years, *, max_pairs=N
                 ):
                     fit[key] = None
         else:
-            fit = (
-                _fit_housing_y_zip(pair, df_zip, df_zip_yearly_long)
-                if pair.geography == "zip"
-                else _fit_housing_y_city(pair, df_final, permit_years)
-            )
+            if pair.geography == "zip":
+                zip_frame = _holdout_if_randhash(df_zip, "zipcode", pair.robustness)
+                zip_yearly = _holdout_if_randhash(df_zip_yearly_long, "zipcode", pair.robustness)
+                fit = _fit_housing_y_zip(pair, zip_frame, zip_yearly)
+            else:
+                city_frame = _holdout_if_randhash(df_final, "JURISDICTION", pair.robustness)
+                fit = _fit_housing_y_city(pair, city_frame, permit_years)
             # Gate is OLS-only (matches econ-Y): McFadden R² is still computed and
             # carried on the record (r2["mcfadden_r2"] below) as a displayed
             # diagnostic, it just no longer gates band availability.
@@ -3842,7 +3872,7 @@ def fit_pairs(df_final, df_zip, df_zip_yearly_long, permit_years, *, max_pairs=N
             # axis label must say so -- mirrors the housing-as-Y label at the PNG renderer.
             x_axis_label = x_meta["display_label"]
             if _x_col_is_housing(pair.x_col, pair.geography):
-                x_axis_label = f"{x_axis_label} per 1000 pop"
+                x_axis_label = _housing_rate_axis_label(x_meta["display_label"], "")
             chart_arrays = build_chart_arrays(fit, x_axis_label)
             # Retain the raw posterior/bootstrap sample arrays (both fit kinds) so
             # consumers can build whichever view they need -- e.g. a positive-only band
@@ -5509,6 +5539,38 @@ def _append_pair_r2_diagnostics_row(r2_diagnostics, result, geography_label):
     ))
 
 
+def _append_continuous_r2_diagnostics_row(r2_diagnostics, result, geography_label):
+    """Append one R2_DIAG_COLUMNS row from a continuous (econ-as-Y) PairFitResult.
+    Continuous fits are no-hurdle full-sample OLS: McFadden and the zero-hurdle columns
+    have no analogue, so they are NaN. OLS_R2_positive_subset carries the full-sample OLS R²."""
+    if r2_diagnostics is None:
+        return
+    regression_label = f"{result.y_render_meta['display_label']} vs {result.x_render_meta['display_label']}"
+    mle_diag = result.mle_diag or {}
+    r2_diagnostics.append((
+        regression_label,
+        geography_label,
+        np.nan,                                   # McFadden_R2 (N/A)
+        result.r2.get("ols_rsquared"),            # OLS_R2_positive_subset (full-sample OLS)
+        float(result.coeffs["slope_mle"]),        # Positive_part_slope_MLE
+        mle_diag.get("positive_part_t", np.nan),  # Positive_part_slope_t
+        mle_diag.get("positive_part_p", np.nan),  # Positive_part_slope_p
+        np.nan,                                   # Zero_mle (N/A)
+        np.nan,                                   # Zero_mle_t (N/A)
+        np.nan,                                   # Zero_mle_p (N/A)
+        np.nan,                                   # PPM_at_median_x (N/A for v1)
+    ))
+
+
+def _housing_rate_axis_label(display_label, apr_year_range=""):
+    """Housing construction-rate axis label. Appends the APR year range (e.g. '2018-2024')
+    when provided; bare 'per 1000 pop' when the range is empty (e.g. the catalog path)."""
+    base = f"{display_label} per 1000 pop"
+    if not apr_year_range:
+        return base
+    return f"{base} ({apr_year_range})"
+
+
 def _draw_two_part_pair_png(result, output_dir, legend_note_payload, apr_year_range):
     """Draw one two_part PairFitResult's PNG(s) (main + positive-OLS companion, when the x_col
     predictor calls for one) straight from its precomputed chart_arrays. No fitting here.
@@ -5526,7 +5588,7 @@ def _draw_two_part_pair_png(result, output_dir, legend_note_payload, apr_year_ra
     parser = parse_zip_outcome if is_zip else parse_city_outcome
     dr_type, cat_suffix = parser(result.y_col)
     ca = result.chart_arrays
-    y_label = f"{result.y_render_meta['display_label']} per 1000 pop"
+    y_label = _housing_rate_axis_label(result.y_render_meta['display_label'], apr_year_range)
     tick_kind = result.x_render_meta.get("tick_kind")
     is_log_x = bool(ca.get("is_log_x"))
     x_tick_dollar = is_log_x and tick_kind != "days"
@@ -5647,11 +5709,16 @@ def _draw_continuous_econ_y_png(result, output_dir, apr_year_range):
     chart_id = _continuous_pair_chart_id(result)
     output_path = output_dir / f"{chart_id}.png"
     label_cleanup = lambda s: str(s).replace(' COUNTY', '')
+    x_label = (
+        _housing_rate_axis_label(result.x_render_meta["display_label"], apr_year_range)
+        if _x_col_is_housing(result.x_col, result.geography)
+        else ca["x_label"]
+    )
     plot_two_part_chart(
         x_scatter=ca["x_scatter_plot"], y_scatter=ca["y_scatter"],
         x_line=ca["x_line_plot"], mle_y=ca["mle_y"],
         output_path=output_path,
-        x_label=ca["x_label"], y_label=y_label,
+        x_label=x_label, y_label=y_label,
         data_label=data_label, apr_year_range=apr_year_range,
         r2=0.0, ols_r2=None,
         boot_ci_lo=ca["boot_ci_lo"], boot_ci_hi=ca["boot_ci_hi"],
@@ -5663,7 +5730,7 @@ def _draw_continuous_econ_y_png(result, output_dir, apr_year_range):
         also_annotate_second_max_x=is_zip,
         positive_ols_simple=True, x_col_for_ols=result.x_col,
         positive_line_y=ca["mle_y"], positive_ols_r2=result.r2.get("ols_rsquared"),
-        mle_beta=float(result.coeffs["slope_mle"]),
+        mle_beta=float(result.coeffs["slope_mle"]), ppm_beta=result.ppm_beta,
         continuous_y=True, y_tick_percent=y_tick_percent,
     )
 
@@ -5674,23 +5741,22 @@ def _render_continuous_results(fit_results, geography, output_dir, charts_skippe
     r2-gate/skip-tracking shape (gated on r2_gate_passed, which fit_pairs already computed
     from the OLS R² threshold for continuous fits).
 
-    No r2_diagnostics row is appended: _append_pair_r2_diagnostics_row unconditionally reads
-    result.r2['mcfadden_r2'] (float(None) -> TypeError for a continuous fit, which has no
-    zero-hurdle/McFadden component at all), so it does not support continuous results as-is.
-    Rather than fabricate a McFadden value or two-part-only fields that don't exist for an
-    OLS-only fit, continuous rows are simply skipped here (all_r2_results is accepted for
-    signature parity with _render_two_part_results but unused). Pure consumption of
-    fit_pairs output -- no fitting.
+    Continuous r2_diagnostics rows are appended with _append_continuous_r2_diagnostics_row
+    (which uses NaN for McFadden and zero-hurdle fields that don't exist for an OLS-only fit).
+    Pure consumption of fit_pairs output -- no fitting.
     """
+    is_zip = geography == "zip"
+    geo_base = GEOGRAPHY_ZIP if is_zip else GEOGRAPHY_CITY
     for result in fit_results:
         if result.geography != geography or result.fit_kind != "continuous":
             continue
         if result.coeffs is None or result.chart_arrays is None:
             continue
+        geography_label = _geo_label(geo_base, _ROBUSTNESS_GEO_LABEL.get(result.robustness))
+        _append_continuous_r2_diagnostics_row(all_r2_results, result, geography_label)
         if not result.r2_gate_passed:
             if charts_skipped_low_r2 is not None:
-                chart_id = _continuous_pair_chart_id(result)
-                charts_skipped_low_r2.append((chart_id, result.r2.get("ols_rsquared")))
+                charts_skipped_low_r2.append((_continuous_pair_chart_id(result), result.r2.get("ols_rsquared")))
             continue
         _draw_continuous_econ_y_png(result, output_dir, apr_year_range)
 

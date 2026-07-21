@@ -123,6 +123,7 @@ def verify_catalog(catalog: dict[str, Any]) -> dict[str, int]:
     if not isinstance(catalog, dict) or not catalog:
         raise VerificationError("catalog must be a non-empty object")
     hierarchical = 0
+    stationary_bootstrap = 0
     for key, payload in catalog.items():
         parts = key.split(":")
         if len(parts) != 4:
@@ -144,16 +145,28 @@ def verify_catalog(catalog: dict[str, Any]) -> dict[str, int]:
         if not isinstance(x_grid, list) or not x_grid or not all(_finite(v) for v in x_grid):
             raise VerificationError(f"shared finite x_grid missing: {key}")
         stats = payload.get("stats", {})
-        two_part = stats.get("two_part", {})
-        for field in ("alpha", "beta", "intercept", "slope"):
-            if not _finite(two_part.get(field)):
-                raise VerificationError(f"{key}.stats.two_part.{field} must be finite")
-        for field in ("beta_t", "beta_p", "slope_t", "slope_p"):
-            if two_part.get(field) is not None and not _finite(two_part[field]):
-                raise VerificationError(f"{key}.stats.two_part.{field} must be finite or null")
+        model_family = payload.get("model_family")
+        if model_family == "continuous":
+            if stats.get("two_part") is not None:
+                raise VerificationError(f"{key}.stats.two_part must be null for a continuous fit")
+            continuous = stats.get("continuous") or {}
+            for field in ("intercept", "slope"):
+                if not _finite(continuous.get(field)):
+                    raise VerificationError(f"{key}.stats.continuous.{field} must be finite")
+            for field in ("slope_t", "slope_p"):
+                if continuous.get(field) is not None and not _finite(continuous[field]):
+                    raise VerificationError(f"{key}.stats.continuous.{field} must be finite or null")
+        else:
+            two_part = stats.get("two_part") or {}
+            for field in ("alpha", "beta", "intercept", "slope"):
+                if not _finite(two_part.get(field)):
+                    raise VerificationError(f"{key}.stats.two_part.{field} must be finite")
+            for field in ("beta_t", "beta_p", "slope_t", "slope_p"):
+                if two_part.get(field) is not None and not _finite(two_part[field]):
+                    raise VerificationError(f"{key}.stats.two_part.{field} must be finite or null")
         availability = payload.get("availability", {})
-        if availability.get("stationary_bootstrap") is not True:
-            raise VerificationError(f"stationary bootstrap unavailable: {key}")
+        if not isinstance(availability.get("stationary_bootstrap"), bool):
+            raise VerificationError(f"stationary_bootstrap availability must be boolean: {key}")
         if not isinstance(availability.get("hierarchical"), bool):
             raise VerificationError(f"hierarchical availability must be boolean: {key}")
         views = payload.get("views", {})
@@ -161,13 +174,17 @@ def verify_catalog(catalog: dict[str, Any]) -> dict[str, int]:
             raise VerificationError(f"both zero-value views required: {key}")
         for view in REQUIRED_VIEWS:
             _verify_mle_component(views[view].get("mle"), len(x_grid), f"{key}.{view}.mle")
-            _verify_component(views[view].get("stationary_bootstrap"), len(x_grid), f"{key}.{view}.stationary_bootstrap")
+            if availability["stationary_bootstrap"]:
+                _verify_component(views[view].get("stationary_bootstrap"), len(x_grid), f"{key}.{view}.stationary_bootstrap")
+            elif "stationary_bootstrap" in views[view]:
+                raise VerificationError(f"unadvertised stationary_bootstrap component: {key}.{view}")
             if availability["hierarchical"]:
                 _verify_component(views[view].get("hierarchical"), len(x_grid), f"{key}.{view}.hierarchical", hierarchical=True)
             elif "hierarchical" in views[view]:
                 raise VerificationError(f"unadvertised hierarchical component: {key}.{view}")
+        stationary_bootstrap += int(availability["stationary_bootstrap"])
         hierarchical += int(availability["hierarchical"])
-    return {"pairs": len(catalog), "hierarchical": hierarchical}
+    return {"pairs": len(catalog), "hierarchical": hierarchical, "stationary_bootstrap": stationary_bootstrap}
 
 
 def verify_manifest(manifest: dict[str, Any], catalog: dict[str, Any]) -> None:
@@ -192,13 +209,13 @@ def verify_manifest(manifest: dict[str, Any], catalog: dict[str, Any]) -> None:
     if manifest["catalog_keys"] != keys or manifest["n_regressions"] != len(catalog):
         raise VerificationError("manifest catalog coverage does not match catalog.json")
     counts = verify_catalog(catalog)
-    if manifest["n_stationary_bootstrap_succeeded"] != counts["pairs"]:
-        raise VerificationError("stationary-bootstrap count does not match archived pairs")
+    if manifest["n_stationary_bootstrap_succeeded"] != counts["stationary_bootstrap"]:
+        raise VerificationError("stationary-bootstrap success count does not match archived availability")
     if manifest["n_hierarchical_succeeded"] != counts["hierarchical"]:
         raise VerificationError("hierarchical-success count does not match archived availability")
     if manifest["n_hierarchical_attempted"] != manifest["n_hierarchical_succeeded"] + manifest["n_hierarchical_failed"]:
         raise VerificationError("hierarchical manifest counts do not reconcile")
-    expected_attempted = len(catalog) + manifest["n_pairs_mle_failed"] + manifest["n_stationary_bootstrap_failed"]
+    expected_attempted = len(catalog) + manifest["n_pairs_mle_failed"]
     if manifest["n_pairs_attempted"] != expected_attempted:
         raise VerificationError("pair attempt counts do not reconcile")
     if not isinstance(manifest["random_seed"], int):

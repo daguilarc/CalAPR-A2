@@ -99,6 +99,37 @@ test("APR explorer separates Maps and Models controls", async ({ page }) => {
   expect(consoleErrors).toEqual([]);
 });
 
+test("transpose then change econ Y updates chart and keeps selection", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("#status")).toHaveText("");
+  await page.locator("#tab-models").click();
+
+  // Default housing-Y × econ-X, then transpose to econ-Y × housing-X
+  await page.locator("#y-col").selectOption("TOTAL_MF_CO_total");
+  await page.locator("#x-col").selectOption("zori_pct_afford");
+  await page.locator("#transpose-xy").click();
+  await expect(page.locator("#y-col")).toHaveValue("zori_pct_afford");
+  await expect(page.locator("#x-col")).toHaveValue("TOTAL_MF_CO_total");
+
+  const zoriY = await page.locator("#model-chart").evaluate((node) => {
+    const plot = node as HTMLDivElement & { data?: Array<{ name?: string; y?: number[] }> };
+    return plot.data?.find((t) => t.name === "Cities" || t.name?.startsWith("Cities"))?.y?.slice(0, 3);
+  });
+
+  await page.locator("#y-col").selectOption("pct_afford_sfrcondo");
+  await expect(page.locator("#y-col")).toHaveValue("pct_afford_sfrcondo");
+
+  const sfrY = await page.locator("#model-chart").evaluate((node) => {
+    const plot = node as HTMLDivElement & { data?: Array<{ name?: string; y?: number[] }> };
+    const scatter = plot.data?.[0];
+    return scatter?.y?.slice(0, 3);
+  });
+  expect(sfrY).not.toEqual(zoriY);
+
+  // Must NOT snap back to alphabetical first neighbor (pct_afford_condo)
+  await expect(page.locator("#y-col")).toHaveValue("pct_afford_sfrcondo");
+});
+
 test("Models options are catalog neighbors and continuous uses positive-only", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#status")).toHaveText("");
@@ -157,4 +188,16 @@ test("Models options are catalog neighbors and continuous uses positive-only", a
   };
   expect(continuousTraces.mle).toEqual(pair.views.positive_only.mle.mean);
   expect(continuousTraces.bootstrapUpper).toEqual(pair.views.positive_only.stationary_bootstrap.upper);
+});
+
+test("continuous pair diagnostics omit hurdle copy", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#tab-models").click();
+  await page.locator("#y-col").selectOption("pct_afford_condo");
+  await page.locator("#x-col").selectOption("TOTAL_MF_CO_total");
+  const stats = await page.locator("#stats").innerText();
+  expect(stats).toMatch(/OLS R²/);
+  expect(stats).not.toMatch(/y>0/);
+  expect(stats).not.toMatch(/Zero part/);
+  expect(stats).not.toMatch(/McFadden/);
 });

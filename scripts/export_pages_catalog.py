@@ -238,7 +238,9 @@ def prune_non_mf_release_artifacts(stage: Path) -> None:
     manifest["catalog_keys"] = sorted(catalog)
     manifest["n_regressions"] = len(catalog)
     manifest["n_pairs_exported"] = len(catalog)
-    manifest["n_stationary_bootstrap_succeeded"] = len(catalog)
+    manifest["n_stationary_bootstrap_succeeded"] = sum(
+        1 for entry in catalog.values() if entry.get("availability", {}).get("stationary_bootstrap") is True
+    )
     manifest["n_hierarchical_succeeded"] = hierarchical_succeeded
     manifest["n_hierarchical_attempted"] = hierarchical_succeeded + hierarchical_failed
     # Gate-fail (bootstrap-absent) pairs are now KEPT in the catalog as MLE-only, so they are counted
@@ -572,11 +574,28 @@ def build_release(
     return stage
 
 
-def promote_release(stage: Path) -> Path:
+def promote_release(stage: Path, *, replace: bool = False) -> Path:
     destination = DOCS_RELEASES / RELEASE_ID
-    if destination.exists():
-        raise FileExistsError(f"immutable deployed release already exists: {destination}")
     destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists():
+        if not replace:
+            raise FileExistsError(f"immutable deployed release already exists: {destination}")
+        # Guarded swap: move the live release aside, copy the new one in, and only remove
+        # the old copy after the new one is fully in place. On any failure, restore the old
+        # release so the deployment is never left missing.
+        backup = destination.with_name(f"{destination.name}.prev")
+        if backup.exists():
+            shutil.rmtree(backup)
+        os.replace(destination, backup)
+        try:
+            shutil.copytree(stage, destination)
+        except BaseException:
+            if destination.exists():
+                shutil.rmtree(destination)
+            os.replace(backup, destination)
+            raise
+        shutil.rmtree(backup)
+        return destination
     shutil.copytree(stage, destination)
     return destination
 
@@ -598,6 +617,7 @@ def main() -> None:
         help="prune + rehash an existing staged release without restamping host python_runtime",
     )
     parser.add_argument("--publish", action="store_true", help="promote only after successful verification")
+    parser.add_argument("--force", action="store_true", help="replace an existing deployed release (local re-publish; guarded swap)")
     args = parser.parse_args()
     if args.release_id != RELEASE_ID:
         raise SystemExit("This pipeline version only supports release id 2018-2024")
@@ -636,7 +656,7 @@ def main() -> None:
         build_release(stage, fixture=args.fixture, max_pairs=args.max_pairs)
         print(f"Verified staging directory: {stage}")
         if args.publish:
-            print(f"Promoted release: {promote_release(stage)}")
+            print(f"Promoted release: {promote_release(stage, replace=args.force)}")
 
 
 if __name__ == "__main__":

@@ -27,6 +27,16 @@ housing↔econ(3) pairs, and use robustness values in `{none, randhash}`.
 - **THEN** it splits into exactly four colon-separated parts
 - **AND** its robustness part is `none` or `randhash`
 
+### Requirement: Randhash deterministic holdout in fit
+
+For `robustness: randhash`, the fit SHALL exclude jurisdictions/ZIPs where a deterministic md5-based hash of the label mod HOLDOUT_MODULUS == 0 (~20% holdout), applied to every fit frame before fitting, so archived observations and stats differ from the `none` sibling.
+
+#### Scenario: Holdout filter applied to randhash pairs
+
+- **WHEN** a pair has `robustness: randhash`
+- **THEN** each fit frame is filtered before regression to exclude labels where `md5(label).hexdigest() % HOLDOUT_MODULUS == 0`
+- **AND** filtering produces a new copy without mutating original shared frames
+
 ### Requirement: Standalone from acs_apr_models.main
 
 The pages catalog builder SHALL produce `catalog.json` and `manifest.json` without invoking `acs_apr_models.main()` or mutating original-script regression loops, PNG output, or `r2_diagnostics.csv`.
@@ -86,6 +96,16 @@ The `stats.two_part` values SHALL appear on the pair's single catalog entry (one
 
 - **WHEN** MLE two-part fit succeeds and inferential stats are computed
 - **THEN** `stats.two_part.beta_t`, `stats.two_part.beta_p`, `stats.two_part.slope_t`, and `stats.two_part.slope_p` are populated
+
+### Requirement: Continuous model diagnostics
+
+For continuous OLS pairs (`model_family` = `continuous`), exported catalog entries SHALL contain `stats.ols_r2` for the full-sample OLS fit, `stats.mcfadden_r2` as null, and `stats.continuous` with linear coefficients. `stats.two_part` SHALL be null; no zero-part or hurdle-specific diagnostics SHALL be exported.
+
+#### Scenario: Econ-as-Y continuous pair
+
+- **WHEN** a pair has `model_family` = `continuous`
+- **THEN** `stats.mcfadden_r2` is null and `stats.continuous.intercept` and `stats.continuous.slope` are populated from full-sample fit
+- **AND** `stats.two_part` is null
 
 ### Requirement: Hierarchical posterior mean slope
 

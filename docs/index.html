@@ -211,8 +211,9 @@
       modelRendered=false;
     }
     function viewKeyForPair(pair){return pair.model_family==="continuous"?"positive_only":byId("zero-values").value}
+    function asVarName(v){return typeof v==="string"?v:undefined}
     function renderModel(preferredY,preferredX){
-      const pair=settleModelControls(preferredY,preferredX);
+      const pair=settleModelControls(asVarName(preferredY),asVarName(preferredX));
       if(!pair){clearModelChart("This combination was not exported (insufficient jurisdictions or missing yearly data). Choose another pair.");return}
       const viewName=viewKeyForPair(pair),view=pair.views[viewName],display=byId("model-display").value;
       if(!view){clearModelChart("This combination was not exported (insufficient jurisdictions or missing yearly data). Choose another pair.");return}
@@ -239,7 +240,18 @@
       modelRendered=true;
       renderStats(pair);
     }
-    function renderStats(pair){const s=pair.stats,tp=s.two_part||{},f=formatDiag;byId("stats").innerHTML=`<p><strong>McFadden R²:</strong> ${f(s.mcfadden_r2)} · <strong>OLS R² (y&gt;0):</strong> ${f(s.ols_r2)}</p><p>Zero part (logit); Positive part (OLS on y &gt; 0).</p>`;byId("coef-table").innerHTML=`<table><thead><tr><th>Part</th><th>Parameter</th><th>Coefficient</th><th>t</th><th>p</th></tr></thead><tbody><tr><td>Zero</td><td>α</td><td>${f(tp.alpha)}</td><td>—</td><td>—</td></tr><tr><td>Zero</td><td>β</td><td>${f(tp.beta)}</td><td>${f(tp.beta_t)}</td><td>${f(tp.beta_p)}</td></tr><tr><td>Positive</td><td>γ</td><td>${f(tp.intercept)}</td><td>—</td><td>—</td></tr><tr><td>Positive</td><td>δ</td><td>${f(tp.slope)}</td><td>${f(tp.slope_t)}</td><td>${f(tp.slope_p)}</td></tr></tbody></table>`}
+    function renderStats(pair){
+      const s=pair.stats,f=formatDiag;
+      if(pair.model_family==="continuous"){
+        const c=s.continuous||s.two_part||{};
+        byId("stats").innerHTML=`<p><strong>OLS R²:</strong> ${f(s.ols_r2)}</p><p>Continuous OLS (all observations; no zero hurdle).</p>`;
+        byId("coef-table").innerHTML=`<table><thead><tr><th>Parameter</th><th>Coefficient</th><th>t</th><th>p</th></tr></thead><tbody><tr><td>Intercept</td><td>${f(c.intercept)}</td><td>—</td><td>—</td></tr><tr><td>Slope</td><td>${f(c.slope)}</td><td>${f(c.slope_t)}</td><td>${f(c.slope_p)}</td></tr></tbody></table>`;
+        return;
+      }
+      const tp=s.two_part||{};
+      byId("stats").innerHTML=`<p><strong>McFadden R²:</strong> ${f(s.mcfadden_r2)} · <strong>OLS R² (y&gt;0):</strong> ${f(s.ols_r2)}</p><p>Zero part (logit); Positive part (OLS on y &gt; 0).</p>`;
+      byId("coef-table").innerHTML=`<table><thead><tr><th>Part</th><th>Parameter</th><th>Coefficient</th><th>t</th><th>p</th></tr></thead><tbody><tr><td>Zero</td><td>α</td><td>${f(tp.alpha)}</td><td>—</td><td>—</td></tr><tr><td>Zero</td><td>β</td><td>${f(tp.beta)}</td><td>${f(tp.beta_t)}</td><td>${f(tp.beta_p)}</td></tr><tr><td>Positive</td><td>γ</td><td>${f(tp.intercept)}</td><td>—</td><td>—</td></tr><tr><td>Positive</td><td>δ</td><td>${f(tp.slope)}</td><td>${f(tp.slope_t)}</td><td>${f(tp.slope_p)}</td></tr></tbody></table>`;
+    }
     function renderMap(){const metric=artifacts.mapMetrics.find(m=>m.key===byId("map-metric").value);if(!metric)return;const mode=byId("map-geography").value,types=mode==="incorporated_cities"?["city"]:mode==="whole_counties"?["county_whole"]:["city","county_residual"],features=artifacts.geojson.features.filter(f=>types.includes(f.properties.geo_type));
       const geo={...artifacts.geojson,features},div=metric.cmap_kind==="div",sub={incorporated_cities:"Incorporated city jurisdictions",whole_counties:"Whole county jurisdictions",cities_plus_unincorporated:"Incorporated cities and unincorporated county jurisdictions"}[mode];byId("map-subheader").textContent=sub;
       byId("map-unit-hint").textContent=metric.unit==="per_1000_pop"?"(per 1,000 population)":"";

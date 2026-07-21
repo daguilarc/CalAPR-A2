@@ -168,7 +168,6 @@ def record_regression(
     arrays = build_chart_arrays(result, income_label)
     re_summary = hierarchy_re_summary(x_col, x_varies_by_year=False)
     mle_result = result.get("mle_result") or {}
-    two_part = _two_part_stats(mle_result) if mle_result else None
     base_meta = {
         "geography": geography,
         "y_col": y_col,
@@ -189,6 +188,27 @@ def record_regression(
     x_model = np.log(np.maximum(x_grid_raw, 1e-300)) if result.get("x_transform") == "log" else x_grid_raw
     views, stationary_ok, hierarchical_ok = _model_views(result, x_model)
     key = catalog_key(geography, y_col, x_col, robustness)
+    model_family = mle_result.get("model_family", "two_part")
+    if model_family == "continuous":
+        stats = {
+            "mcfadden_r2": None,
+            "ols_r2": _finite_or_none(result.get("ols_rsquared")),
+            "continuous": {
+                "intercept": _finite_or_none(mle_result.get("intercept_mle")),
+                "slope": _finite_or_none(mle_result.get("slope_mle")),
+                "slope_t": _finite_or_none(mle_result.get("positive_part_t")),
+                "slope_p": _finite_or_none(mle_result.get("positive_part_p")),
+            },
+            "two_part": None,
+        }
+    else:
+        two_part = _two_part_stats(mle_result) if mle_result else None
+        stats = {
+            "mcfadden_r2": _finite_or_none(result.get("mcfadden_r2")),
+            "ols_r2": _finite_or_none(result.get("ols_rsquared")),
+            "two_part": two_part,
+            "continuous": None,
+        }
     PAGES_CATALOG[key] = {
         **base_meta,
         "observations": {
@@ -197,11 +217,7 @@ def record_regression(
             "labels": [str(v) for v in arrays["labels"]] if arrays.get("labels") is not None else [],
         },
         "x_grid": np.asarray(arrays["x_line_plot"], dtype=float).tolist(),
-        "stats": {
-            "mcfadden_r2": _finite_or_none(result.get("mcfadden_r2")),
-            "ols_r2": _finite_or_none(result.get("ols_rsquared")),
-            "two_part": two_part,
-        },
+        "stats": stats,
         "availability": {
             "stationary_bootstrap": stationary_ok,
             "hierarchical": hierarchical_ok,

@@ -303,3 +303,12 @@ Model-tab user-visible labels for multifamily for-sale streams (`mf_owner_*`) SH
 
 - **WHEN** user opens Variable (Y) dropdown for city geography
 - **THEN** `mf_owner_CO_total` displays with **For-sale** terminology (not "Owner")
+
+### Requirement: Continuous diagnostics copy
+
+When `model_family` is `continuous`, Models diagnostics SHALL show OLS R² for the full continuous fit (not "OLS R² (y>0)"), SHALL NOT show McFadden R², and SHALL NOT describe a zero/positive two-part hurdle. The coefficient table SHALL show a single linear part (intercept and slope) only.
+
+#### Scenario: Econ-as-Y pair
+
+- **WHEN** the selected pair has `model_family: continuous`
+- **THEN** diagnostics text does not contain `y>0` or `Zero part (logit)`

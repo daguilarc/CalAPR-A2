@@ -108,6 +108,27 @@ class CatalogContractTests(unittest.TestCase):
         self.assertIsNone(payload["stats"]["ols_r2"])
         json.dumps(payload, allow_nan=False)
 
+    def test_continuous_stats_export_omits_two_part_and_mcfadden(self):
+        result = self._result(hierarchical=False)
+        result["mle_result"]["model_family"] = "continuous"
+        # Continuous fits have no alpha/beta hurdle part
+        result["mle_result"].pop("alpha_mle", None)
+        result["mle_result"].pop("beta_mle", None)
+        result.pop("alpha_mle", None)
+        result.pop("beta_mle", None)
+        result.pop("boot_alpha_samples", None)
+        result.pop("boot_beta_samples", None)
+        self.export.record_regression(
+            result, geography="city", y_col="zori_pct_change", x_col="TOTAL_MF_CO_total",
+            robustness="none", data_label="Cities", dr_type="zori_pct_change", cat_suffix="CO",
+        )
+        payload = self.export.PAGES_CATALOG["city:zori_pct_change:TOTAL_MF_CO_total:none"]
+        self.assertIsNone(payload["stats"]["two_part"])
+        self.assertIsNone(payload["stats"]["mcfadden_r2"])
+        self.assertIsNotNone(payload["stats"]["continuous"])
+        self.assertIsInstance(payload["stats"]["continuous"]["slope"], float)
+        self.assertTrue(np.isfinite(payload["stats"]["continuous"]["slope"]))
+
     def test_each_pair_invokes_mle_bootstrap_and_hierarchical_once(self):
         import acs_apr_models
 
@@ -383,12 +404,14 @@ class RegistryAndMapFormulaTests(unittest.TestCase):
             catalog = {
                 "city:DB_CO_total:TOTAL_MF_CO_total:none": {
                     "geography": "city", "y_col": "DB_CO_total", "x_col": "TOTAL_MF_CO_total",
+                    "availability": {"stationary_bootstrap": True, "hierarchical": False},
                 },
                 "city:DB_CO_total:TOTAL_CO_total:none": {
                     "geography": "city", "y_col": "DB_CO_total", "x_col": "TOTAL_CO_total",
                 },
                 "city:TOTAL_MF_CO_total:zori_pct_change:none": {
                     "geography": "city", "y_col": "TOTAL_MF_CO_total", "x_col": "zori_pct_change",
+                    "availability": {"stationary_bootstrap": True, "hierarchical": False},
                 },
                 "city:DB_CO_total:income_delta_pct_change:none": {
                     "geography": "city", "y_col": "DB_CO_total", "x_col": "income_delta_pct_change",
@@ -411,6 +434,7 @@ class RegistryAndMapFormulaTests(unittest.TestCase):
                 },
                 "zip:net_MF_CO:median_income:none": {
                     "geography": "zip", "y_col": "net_MF_CO", "x_col": "median_income",
+                    "availability": {"stationary_bootstrap": True, "hierarchical": False},
                 },
             }
             metrics = [
@@ -572,14 +596,15 @@ class RegistryAndMapFormulaTests(unittest.TestCase):
             "JURISDICTION": [f"J{i}" for i in range(n)],
             "county": ["001"] * n,
             "population": [1000.0] * n,
-            "zhvi_condo_pct_change": x,
+            "TOTAL_MF_CO_total": x,
             "zori_pct_change": 2.0 * x,
         })
         pair = SimpleNamespace(
-            x_col="zhvi_condo_pct_change",
+            x_col="TOTAL_MF_CO_total",
             y_col="zori_pct_change",
             min_jurisdictions=10,
             requires_msa=False,
+            geography="city",
         )
         result = _fit_econ_y_pair(pair, frame, label_col="JURISDICTION")
         self.assertIsNotNone(result)
@@ -649,7 +674,7 @@ class StaticContractTests(unittest.TestCase):
         ):
             self.assertIn(text, html)
         self.assertNotIn("const CHART_LABELS = {", html)
-        for token in ("per1000Outcomes", "MODEL_LEGEND", "xanchor:\"left\"", "yanchor:\"top\"", "Two-part MLE", "Stationary bootstrap 95% interval", "Coefficient", "map-unit-hint", "below:\"water\"", "line:{color:\"rgba(255,255,255,.72)\",width:.45}", "scrollZoom:true", "zmin", "zmax"):
+        for token in ("per1000Outcomes", "MODEL_LEGEND", "xanchor:\"right\"", "yanchor:\"top\"", "Two-part MLE", "Stationary bootstrap 95% interval", "Coefficient", "map-unit-hint", "below:\"water\"", "line:{color:\"rgba(255,255,255,.72)\",width:.45}", "scrollZoom:true", "zmin", "zmax"):
             self.assertIn(token, html)
         labels = json.loads((ROOT / "docs/chart_labels.json").read_text(encoding="utf-8"))
         self.assertIsInstance(labels["predictors"], dict)
@@ -688,6 +713,7 @@ class StaticContractTests(unittest.TestCase):
             r'(?s)<section id="panel-models"[^>]*>\s*'
             r'<div class="controls model-grid">\s*'
             r'<label>Variable \(Y\)<select id="y-col"></select></label>\s*'
+            r'<button id="transpose-xy"[^>]*>[^<]*</button>\s*'
             r'<label>Variable \(X\)<select id="x-col"></select></label>\s*'
             r'<label>Model display<select id="model-display"></select></label>\s*'
             r'<label>Zero Values<select id="zero-values">',
@@ -705,14 +731,14 @@ class StaticContractTests(unittest.TestCase):
             "function neighborXs(",
             "function neighborYs(",
             "function settleModelControls(",
-            'replaceOptions("y-col",ys,variableLabel,y)',
-            'replaceOptions("x-col",xs,variableLabel,x)',
+            'replaceOptions("y-col",ys,varOptionLabel,y)',
+            'replaceOptions("x-col",xs,varOptionLabel,x)',
             'pair.model_family==="continuous"?"positive_only"',
             "function axisLayout(pair,frameXs,frameYs,obsYs)",
             "if(yrange&&obsNums.length&&Math.min(...obsNums)>=0)yrange[0]=0",
             'return outcomeIsPer1000(col)?"Dwelling Units per 1,000 pop":"Dwelling Units"',
             'tickformat:"$,.0f"',
-            'ticksuffix:"%"',
+            'tickformat:".0%"',
             "function formatDiag(v)",
             "Math.abs(n)<1e-5",
             "Robustness Checks",

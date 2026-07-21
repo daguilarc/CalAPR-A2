@@ -148,17 +148,25 @@ def build_mle_ci(result, x_range_raw):
         bayes_ci_hi = np.percentile(curves, 97.5, axis=0)
         bayes_mean = np.mean(curves, axis=0)
     elif ii is not None and is_ is not None and (ia is None or ib is None):
-        # No-hurdle (continuous) case: alpha/beta samples don't exist, so fall back to
-        # the intercept/slope-only CI (same fallback ci_from_samples already offers the
-        # bootstrap branch above) instead of requiring all four samples.
+        # intercept/slope samples present, no alpha/beta samples. Reached by BOTH the
+        # no-hurdle continuous fit AND the two-part positive-only-hierarchical fallback,
+        # so scope the posterior-mean change to continuous only (mirrors the is_continuous
+        # guard on the boot_ci branch above).
+        int_s = np.asarray(ii, dtype=np.float64)
+        slope_s = np.asarray(is_, dtype=np.float64)
         bayes_ci_lo, bayes_ci_hi = ci_from_samples(
-            x_sc,
-            int_s=np.asarray(ii, dtype=np.float64),
-            slope_s=np.asarray(is_, dtype=np.float64),
-            psi_mle=psi,
-            eta_mle=eta,
+            x_sc, int_s=int_s, slope_s=slope_s, psi_mle=psi, eta_mle=eta,
         )
-        bayes_mean = mle_y
+        if is_continuous:
+            # Continuous (psi==1): posterior predictive mean is the mean of the sample
+            # linear curves; its slope equals ppm_beta = mean(slope_samples), so the drawn
+            # line and its legend beta agree.
+            eta_samples = int_s[:, None] + slope_s[:, None] * x_sc[None, :]
+            bayes_mean = np.mean(eta_samples, axis=0)
+        else:
+            # Two-part positive-only-hierarchical fallback: preserve prior behavior
+            # (out of scope for the continuous PPM fix).
+            bayes_mean = mle_y
     return (mle_y, boot_ci_lo, boot_ci_hi, bayes_ci_lo, bayes_ci_hi, bayes_mean)
 
 
