@@ -233,17 +233,10 @@
   "random_seed": 20240618,
   "maps_geojson": "maps.geojson",
   "python_runtime": "CPython 3.11.14",
-  "code_revision": "2ccf430ac5255a706d1952917a7ec4a2bba272e9",
+  "code_revision": "8d0c2be32e7c788a636f6cdd9c313e993466a396",
   "code_files": [
     ".github/workflows/build-pages.yml",
     "TableA2-models/acs_apr_models.py",
-    "TableA2-models/chart_prep.py",
-    "TableA2-models/db_maps.py",
-    "TableA2-models/map_metric_registry.py",
-    "TableA2-models/pages_catalog_builder.py",
-    "TableA2-models/pages_export.py",
-    "TableA2-models/pages_pipeline_context.py",
-    "TableA2-models/pair_registry.py",
     "tablea2_parsefilter_repair.py",
     "TableA2-models/pages/__init__.py",
     "TableA2-models/pages/catalog_builder.py",
@@ -265,7 +258,7 @@
     "docs/index.html",
     "notebooks/apr_explorer.ipynb"
   ],
-  "code_sha256": "555b5f9777c97adc394fa9a511c11a204671daff24fc13e2f3c49d0fa75a1c2c",
+  "code_sha256": "332506f68062ad0be0aee92af0f4c02ccb28101986242878c1e152b996886a83",
   "dependency_files": [
     "requirements-pages-release.lock"
   ],
@@ -274,7 +267,7 @@
     "catalog.json": "215fd4829a351eaba3c430db4ad40ec5638e2c0e15902088689147bc758121bd",
     "map_metrics.json": "da009b91ef8c1b6494115f69e1f7cd2b07e8366f4306364b305d7e9838023ace",
     "maps.geojson": "879b7c44fae7ee0ac92c90255ea28549c7066bc6fae27493a822e646278c84ea",
-    "chart_labels.json": "608704a9cf1b237f82c806f1147488df7c4042c356b15672b67ea44867325e53",
+    "chart_labels.json": "4def201ca462cfe739b36417231507521e560989c5a930a77f0506dd9cb2e824",
     "map_formula_audit.json": "f09e46fa9c1abe6882a26fc3f7e22c251caf245629d1cb06d5a56c4790b6cdcd",
     "plotly.min.js": "41a395c2d558d13d3655a1ebafaa67a072c2c1ac8c269e0ee67e18c9a137ac99"
   }
