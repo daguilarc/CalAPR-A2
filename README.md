@@ -2,6 +2,19 @@
 
 California HCD [Annual Progress Report (APR)](https://data.ca.gov/dataset/housing-element-annual-progress-report-apr-data-by-jurisdiction-and-year) Table A2 parsing, repair, and charts.
 
+## Archived maps page
+
+The maps-only GitHub Pages site lives in `docs/`. It restores the archived
+2018–2024 map release from the repository history: eight multifamily housing
+metrics across incorporated cities, whole counties, and cities plus
+unincorporated county areas. The page reads committed GeoJSON and metric
+metadata; it does not run a notebook, generate regressions, or rebuild data.
+
+To preview locally, run `python -m http.server 8765 --directory docs` and open
+`http://localhost:8765/`. After GitHub Pages is set to **GitHub Actions** as
+the source, pushes to `main` that change `docs/` deploy the site through
+`.github/workflows/maps-pages.yml`.
+
 ## Pipeline
 
 Two steps: clean the raw HCD export, then chart the cleaned data.
