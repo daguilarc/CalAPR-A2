@@ -25,11 +25,27 @@ _CLEANUP_DIR = _DATA_ROOT / "data-cleanup"
 DATA_PATH = _DATA_ROOT / "tablea2_cleaned_parsefilter_repair.csv"
 OUTPUT_DIR = Path(__file__).resolve().parent
 
-if not DATA_PATH.exists():
-    sys.path.insert(0, str(_CLEANUP_DIR))
-    from tablea2_parsefilter_repair import run_repair
-    print(f"{DATA_PATH.name} not found -- running parsefilter repair against {_DATA_ROOT}")
-    run_repair(base_dir=_DATA_ROOT, output_dir=_DATA_ROOT)
+
+# Shared housing and stage definitions used by charts and the static map exporter.
+UNIT_CAT_CODES_TOP_TO_BOTTOM = ['SFD', 'SFA', 'MH', 'ADU', '2 to 4', '5+']
+UNIT_CAT_ORDER = list(reversed(UNIT_CAT_CODES_TOP_TO_BOTTOM))
+UNIT_CAT_LABELS = {
+    'SFD': 'Single Family Detached',
+    'SFA': 'Single Family Attached',
+    'MH': 'Mobile Home',
+    'ADU': 'Accessory dwelling units',
+    '2 to 4': 'Two to four units',
+    '5+': 'Five or more units',
+}
+STAGE_METADATA = (
+    {'key': 'ENT', 'prefix': '', 'label': 'Entitlements', 'net_column': 'ent_net',
+     'chart_label': 'Entitlements', 'singular': 'entitlement'},
+    {'key': 'BP', 'prefix': 'BP', 'label': 'Building Permits', 'net_column': 'bp_net',
+     'chart_label': 'Building Permits', 'singular': 'building permit'},
+    {'key': 'CO', 'prefix': 'CO', 'label': 'Certificates of Occupancy', 'net_column': 'co_net',
+     'chart_label': 'Completions', 'singular': 'certificate of occupancy'},
+)
+STAGES = {stage['key']: stage for stage in STAGE_METADATA}
 
 # Color scheme (colorblind-friendly)
 COLORS = {
@@ -163,9 +179,9 @@ income_tier_structure = [
 # duplicated verbatim in _coerce_income_unit_columns and in main()). Format:
 # (stage, display_name, filename) -- above_mod_col is now derived via income_col_names.
 unitcat_stage_specs = [
-    ('', 'entitlement', 'income_by_unitcat_ent.png'),
-    ('BP', 'building permit', 'income_by_unitcat_bp.png'),
-    ('CO', 'certificate of occupancy', 'income_by_unitcat_co.png'),
+    (STAGES['ENT']['prefix'], STAGES['ENT']['singular'], 'income_by_unitcat_ent.png'),
+    (STAGES['BP']['prefix'], STAGES['BP']['singular'], 'income_by_unitcat_bp.png'),
+    (STAGES['CO']['prefix'], STAGES['CO']['singular'], 'income_by_unitcat_co.png'),
 ]
 
 
@@ -228,9 +244,15 @@ def _plot_income_units_vertical_stacked_bars(
     set_y_padding(ax)
 
 
-def _load_and_derive_apr_dataframe():
-    print(f"Loading: {DATA_PATH}")
-    df = pd.read_csv(DATA_PATH, low_memory=False)
+def _load_and_derive_apr_dataframe(data_path=DATA_PATH):
+    data_path = Path(data_path)
+    if data_path == DATA_PATH and not data_path.exists():
+        sys.path.insert(0, str(_CLEANUP_DIR))
+        from tablea2_parsefilter_repair import run_repair
+        print(f"{data_path.name} not found -- running parsefilter repair against {_DATA_ROOT}")
+        run_repair(base_dir=_DATA_ROOT, output_dir=_DATA_ROOT)
+    print(f"Loading: {data_path}")
+    df = pd.read_csv(data_path, low_memory=False)
     df['DEM_DES_UNITS'] = pd.to_numeric(df['DEM_DES_UNITS'], errors='coerce').fillna(0)
     df['YEAR'] = pd.to_numeric(df['YEAR'], errors='coerce')
     dem_year_mask = (df['DEM_DES_UNITS'] >= 2000) & (abs(df['DEM_DES_UNITS'] - df['YEAR']) <= 5)
@@ -287,7 +309,7 @@ def _coerce_income_unit_columns(df):
     # Superset of every income/unit column any chart reads: the raw ELI units column plus,
     # for each development stage, its ABOVE_MOD single column and its VLOW/LOW/MOD DR+NDR pairs.
     income_cols = {'EXTR_LOW_INCOME_UNITS'}
-    for stage in ('', 'BP', 'CO'):
+    for stage in (item['prefix'] for item in STAGE_METADATA):
         income_cols.add(income_col_names(stage, 'ABOVE_MOD')[0])
         for tier in ('VLOW', 'LOW', 'MOD'):
             income_cols.update(income_col_names(stage, tier))
@@ -434,8 +456,8 @@ def main():
     df, mfh_mask = _derive_dr_type_flags(df)
 
     tenure_specs = [
-        ('co_net', 'Completions', 'tenure_total_cos.png'),
-        ('bp_net', 'Building Permits', 'tenure_total_bp.png'),
+        (STAGES['CO']['net_column'], STAGES['CO']['chart_label'], 'tenure_total_cos.png'),
+        (STAGES['BP']['net_column'], STAGES['BP']['chart_label'], 'tenure_total_bp.png'),
     ]
     tenure_variants = [
         (None, 'All Housing ', ''),
@@ -474,9 +496,9 @@ def main():
     # =============================================================================
 
     db_inc_specs = [
-        ('co_net', 'Completions', 'db_vs_inc_cos.png'),
-        ('bp_net', 'Building Permits', 'db_vs_inc_bp.png'),
-        ('ent_net', 'Entitlements', 'db_vs_inc_ent.png'),
+        (STAGES['CO']['net_column'], STAGES['CO']['chart_label'], 'db_vs_inc_cos.png'),
+        (STAGES['BP']['net_column'], STAGES['BP']['chart_label'], 'db_vs_inc_bp.png'),
+        (STAGES['ENT']['net_column'], STAGES['ENT']['chart_label'], 'db_vs_inc_ent.png'),
     ]
 
     series_specs = [
@@ -533,8 +555,8 @@ def main():
     df = _impute_eli_stage_columns(df)
 
     income_chart_specs = [
-        ('BP', 'Building Permits', 'income_permits.png'),
-        ('CO', 'Completions', 'income_cos.png'),
+        (STAGES['BP']['prefix'], STAGES['BP']['chart_label'], 'income_permits.png'),
+        (STAGES['CO']['prefix'], STAGES['CO']['chart_label'], 'income_cos.png'),
     ]
 
     # Income tiers (highest to lowest) - excludes Above Moderate (market rate)
@@ -590,14 +612,14 @@ def main():
     # (mask_or_None, title_prefix, stage_specs)
     dr_tier_groups = [
         (None, 'Affordable',
-         [('BP', 'Building Permits', 'dr_permits.png'),
-          ('CO', 'Completions', 'dr_cos.png')]),
+         [(STAGES['BP']['prefix'], STAGES['BP']['chart_label'], 'dr_permits.png'),
+          (STAGES['CO']['prefix'], STAGES['CO']['chart_label'], 'dr_cos.png')]),
         (df['has_db'] & df['is_owner'], 'Density Bonus For-Sale',
-         [('BP', 'Building Permits', 'db_ownr_dr_permits.png'),
-          ('CO', 'Completions', 'db_ownr_dr_cos.png')]),
+         [(STAGES['BP']['prefix'], STAGES['BP']['chart_label'], 'db_ownr_dr_permits.png'),
+          (STAGES['CO']['prefix'], STAGES['CO']['chart_label'], 'db_ownr_dr_cos.png')]),
         (df['has_db'] & df['is_rental'], 'Density Bonus Rental',
-         [('BP', 'Building Permits', 'db_rent_dr_permits.png'),
-          ('CO', 'Completions', 'db_rent_dr_cos.png')]),
+         [(STAGES['BP']['prefix'], STAGES['BP']['chart_label'], 'db_rent_dr_permits.png'),
+          (STAGES['CO']['prefix'], STAGES['CO']['chart_label'], 'db_rent_dr_cos.png')]),
     ]
 
     _plot_dr_income_tier_groups(df, years, dr_tier_groups, income_tier_structure, next_chart)
@@ -608,12 +630,12 @@ def main():
     # =============================================================================
 
     dr_income_chart_specs = [
-        ('has_db', 'Density Bonus', 'BP', 'Building Permits', 'db_permits_income.png'),
-        ('has_db', 'Density Bonus', 'CO', 'Completions', 'db_cos_income.png'),
-        ('has_db', 'Density Bonus', '', 'Entitlements', 'db_ent_income.png'),
-        ('has_inc_only', 'Non-Bonus Inclusionary', 'BP', 'Building Permits', 'inc_permits_income.png'),
-        ('has_inc_only', 'Non-Bonus Inclusionary', 'CO', 'Completions', 'inc_cos_income.png'),
-        ('has_inc_only', 'Non-Bonus Inclusionary', '', 'Entitlements', 'inc_ent_income.png'),
+        ('has_db', 'Density Bonus', STAGES['BP']['prefix'], STAGES['BP']['chart_label'], 'db_permits_income.png'),
+        ('has_db', 'Density Bonus', STAGES['CO']['prefix'], STAGES['CO']['chart_label'], 'db_cos_income.png'),
+        ('has_db', 'Density Bonus', STAGES['ENT']['prefix'], STAGES['ENT']['chart_label'], 'db_ent_income.png'),
+        ('has_inc_only', 'Non-Bonus Inclusionary', STAGES['BP']['prefix'], STAGES['BP']['chart_label'], 'inc_permits_income.png'),
+        ('has_inc_only', 'Non-Bonus Inclusionary', STAGES['CO']['prefix'], STAGES['CO']['chart_label'], 'inc_cos_income.png'),
+        ('has_inc_only', 'Non-Bonus Inclusionary', STAGES['ENT']['prefix'], STAGES['ENT']['chart_label'], 'inc_ent_income.png'),
     ]
 
     # Income tier structure for these charts (highest to lowest, combined DR+NDR)
@@ -662,16 +684,6 @@ def main():
     # =============================================================================
 
     # User order (left to right on x-axis): SFD, SFA, MH, ADU, 2-4, 5+ — same codes as prior horizontal layout.
-    UNIT_CAT_CODES_TOP_TO_BOTTOM = ['SFD', 'SFA', 'MH', 'ADU', '2 to 4', '5+']
-    UNIT_CAT_ORDER = list(reversed(UNIT_CAT_CODES_TOP_TO_BOTTOM))
-    UNIT_CAT_LABELS = {
-        'SFD': 'Single Family Detached',
-        'SFA': 'Single Family Attached',
-        'MH': 'Mobile Home',
-        'ADU': 'ADU',
-        '2 to 4': '2-4 Units',
-        '5+': '5+ Units',
-    }
     # unitcat_stage_specs is the module-level (stage, display_name, filename) definition.
     _income_unitcat_year_span = f'{int(min(years))}-{int(max(years))}'
     for stage, stage_display_name, filename in unitcat_stage_specs:
@@ -697,9 +709,9 @@ def main():
     ]
     tier_labels = [label for _, label, _ in tiers]
     dr_ndr_specs = [
-        ('', 'entitlement', 'dr_vs_ndr_ent.png'),
-        ('BP', 'building permits', 'dr_vs_ndr_bp.png'),
-        ('CO', 'completions', 'dr_vs_ndr_cos.png'),
+        (STAGES['ENT']['prefix'], STAGES['ENT']['singular'], 'dr_vs_ndr_ent.png'),
+        (STAGES['BP']['prefix'], STAGES['BP']['chart_label'].lower(), 'dr_vs_ndr_bp.png'),
+        (STAGES['CO']['prefix'], STAGES['CO']['chart_label'].lower(), 'dr_vs_ndr_cos.png'),
     ]
     for prefix, stage_name, filename in dr_ndr_specs:
         next_chart(filename)
@@ -732,8 +744,8 @@ def main():
 
     # Type specs: (prefix, title_type, suffix)
     line_type_specs = [
-        ('CO', 'Completions', '_cos'),
-        ('BP', 'Building Permits', '_bp'),
+        (STAGES['CO']['prefix'], STAGES['CO']['chart_label'], '_cos'),
+        (STAGES['BP']['prefix'], STAGES['BP']['chart_label'], '_bp'),
     ]
 
     # Income tiers (highest to lowest for legend order)

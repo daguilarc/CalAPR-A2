@@ -70,9 +70,14 @@ Upsert behavior (every write path is listed; each identity takes exactly one out
   candidate, several APR rows).
 - Single resolved candidate, exactly one matching APR row: in-place update of mapped columns
   only (see `map_a2_row_to_apr_record`) -> `truncated_identities_resolved_update`.
-- Single resolved candidate, zero matching APR rows: append one synthetic APR row; unmapped
-  columns use dtype-consistent defaults (`NaN` for numeric, `""` for object)
-  -> `truncated_identities_resolved_append`.
+- Single resolved candidate, zero matching APR rows: propose one synthetic APR row.
+  Before concat, screen source and mapped identifiers against original/current APR rows and
+  the complete pending batch. Compatible jurisdiction/year links withhold both pending
+  endpoints for review; county differences never exclude a link. Incomplete mapped scope
+  or missing usable mapped identifiers also withhold the proposal. Withheld proposals use
+  `append_candidate_review` and count as ambiguous, not append. Accepted rows use
+  dtype-consistent defaults (`NaN` for numeric, `""` for object) for unmapped columns
+  -> `truncated_identities_resolved_append`. This is an identifier guard, not global dedup.
 - Accounting invariant, enforced in `main` (raises on violation): detected ==
   update + append + paired + ambiguous + unresolved + integrity_errors.
 
@@ -103,7 +108,8 @@ Pipeline order
 4) `_extract_truncated_closer_rows` -> truncated physical lines
 5) dedupe identities -> XLSM lookup -> upsert (appends batched) -> lone-quote cleanup
 6) `_row_date_phase_status` + valid YEAR filter + `_deduplicate_apr`
-7) `_classify_truncated_rows` -> matched/unmatched truncated CSVs
+7) phase comparison of date-excluded rows against final retained rows;
+   `_classify_truncated_rows` -> matched/unmatched truncated CSVs
 8) write cleaned APR + malformed drops; print structured stdout summary
 
 Output files (all written to the repo root unless paths are overridden via `run_repair`;
@@ -113,12 +119,19 @@ the authoritative list is the path assignment in `_set_paths`)
 - Truncated classification: `matched_truncated_repair.csv`, `unmatched_truncated_repair.csv`
 - Upsert ambiguity audit: `ambiguous_truncated_repair.csv`
 - Dropped rows (date mismatches + invalid years): `date_year_mismatch_rows_parsefilter_repair.csv`
+- Phase comparison: `date_excluded_phase_comparison_parsefilter_repair.csv` — potential
+  repeated phase activity using parsed pipeline values and exported record ordinals.
 - Metrics: stdout summary block only. Metric names are defined by the `metrics` list in `main`;
   per-run values are deliberately not recorded here, since a pasted snapshot goes stale silently.
 """
 
 import csv
 import io
+import json
+from datetime import datetime
+from decimal import Decimal, InvalidOperation
+from itertools import chain
+from time import perf_counter
 import re
 import warnings
 from collections import defaultdict
@@ -141,6 +154,7 @@ def _set_paths(base_dir: Path, output_dir: Path | None = None) -> None:
     global apr_path
     global cleaned_path
     global date_year_mismatch_path
+    global date_excluded_phase_comparison_path
     global matched_truncated_path
     global unmatched_truncated_path
     global ambiguous_truncated_path
@@ -151,6 +165,7 @@ def _set_paths(base_dir: Path, output_dir: Path | None = None) -> None:
     apr_path = _input_dir / "tablea2.csv"
     cleaned_path = _output_dir / "tablea2_cleaned_parsefilter_repair.csv"
     date_year_mismatch_path = _output_dir / "date_year_mismatch_rows_parsefilter_repair.csv"
+    date_excluded_phase_comparison_path = _output_dir / "date_excluded_phase_comparison_parsefilter_repair.csv"
     matched_truncated_path = _output_dir / "matched_truncated_repair.csv"
     unmatched_truncated_path = _output_dir / "unmatched_truncated_repair.csv"
     ambiguous_truncated_path = _output_dir / "ambiguous_truncated_repair.csv"
@@ -247,6 +262,144 @@ def _row_date_phase_status(row):
             if first_label is None:
                 first_label = label
     return (has_mismatch, has_match, first_label)
+
+
+def _normalize_phase_date(value):
+    """Return a full calendar date; accept ISO dates/times and explicit US dates only."""
+    if pd.isna(value):
+        return None
+    text = str(value).strip()
+    try:
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?)?", text):
+            return datetime.fromisoformat(text.replace("Z", "+00:00")).date().isoformat()
+        if re.fullmatch(r"\d{1,2}/\d{1,2}/\d{4}", text):
+            return datetime.strptime(text, "%m/%d/%Y").date().isoformat()
+    except ValueError:
+        pass
+    return None
+
+
+def _compare_date_excluded_phases(excluded, retained):
+    """Compare pipeline phase values, preserving all potential counterpart edges.
+
+    IDs are 1-based CSV data-record ordinals in the existing dropped/clean exports.
+    Candidate matches indicate potentially repeated activity, never proven duplicates.
+    """
+    started = perf_counter()
+    identity_cols = ["JURIS_NAME", "CNTY_NAME", "APN", "STREET_ADDRESS", "JURS_TRACKING_ID"]
+    columns = ["excluded_row_id", *identity_cols, "YEAR", "phase",
+               "source_date_pipeline_value", "normalized_date", "source_homes_pipeline_value",
+               "source_homes_parsed", "excluded_date_matches_reporting_year", "status", "reason",
+               "identity_basis", "candidate_count", "candidate_retained_row_ids",
+               "candidate_retained_years", "retained_reporting_year_matches_phase_date",
+               "shared_candidate", "identity_conflict_retained_row_ids"]
+    # Config labels already distinguish the three phases; no second phase/count map.
+    phase_names = {"ENT_DATE mismatch": "entitlement", "ISS_DATE mismatch": "permit",
+                   "CO_DATE mismatch": "completion"}
+    retained_index = defaultdict(list)
+    for ordinal, (_, row) in enumerate(retained.iterrows(), 1):
+        norm = tuple(_norm_str(row.get(c)) for c in identity_cols)
+        if all(norm[:3]):
+            retained_index[norm[:3]].append((ordinal, row, norm))
+    records, edges = [], defaultdict(int)
+    for ordinal, (_, row) in enumerate(excluded.iterrows(), 1):
+        norm = tuple(_norm_str(row.get(c)) for c in identity_cols)
+        try:
+            year = Decimal(str(row.get("YEAR")))
+            year = int(year) if year.is_finite() and year == year.to_integral_value() else None
+        except (InvalidOperation, ValueError, TypeError):
+            year = None
+        for date_col, count_col, label in _DATE_CHECK_CONFIG:
+            raw_count = row.get(count_col)
+            if not _norm_str(raw_count):
+                continue
+            try:
+                count = Decimal(str(raw_count))
+                valid_count = count.is_finite() and count > 0 and count == count.to_integral_value()
+                if count.is_finite() and count == 0:
+                    continue
+            except InvalidOperation:
+                valid_count = False
+            count = int(count) if valid_count else None
+            date = _normalize_phase_date(row.get(date_col))
+            reasons = []
+            if not all(norm[:3]) or not (norm[4] or norm[3]):
+                reasons.append("missing_identity")
+            if year is None:
+                reasons.append("invalid_reporting_year")
+            if count is None:
+                reasons.append("invalid_phase_homes")
+            if date is None:
+                reasons.append("invalid_or_missing_phase_date")
+            rec = dict(excluded_row_id=ordinal, **{c: row.get(c, "") for c in identity_cols},
+                       YEAR=row.get("YEAR"), phase=phase_names[label],
+                       source_date_pipeline_value=row.get(date_col), normalized_date=date,
+                       source_homes_pipeline_value=raw_count, source_homes_parsed=count,
+                       excluded_date_matches_reporting_year=(int(date[:4]) == year if date and year is not None else None),
+                       status="insufficient_evidence" if reasons else "no_candidate_match",
+                       reason=";".join(reasons), identity_basis="", candidate_count=0,
+                       candidate_retained_row_ids=[], candidate_retained_years=[],
+                       retained_reporting_year_matches_phase_date=False, shared_candidate=False,
+                       identity_conflict_retained_row_ids=[])
+            bases = set()
+            if not reasons:
+                for retained_id, other, other_norm in retained_index.get(norm[:3], []):
+                    try:
+                        other_year = Decimal(str(other.get("YEAR")))
+                        other_count = Decimal(str(other.get(count_col)))
+                    except InvalidOperation:
+                        continue
+                    if not (other_year.is_finite() and other_year == other_year.to_integral_value()
+                            and other_year != year and other_year == int(date[:4])
+                            and other_count.is_finite() and other_count == count
+                            and _normalize_phase_date(other.get(date_col)) == date):
+                        continue
+                    if norm[4] and other_norm[4]:
+                        if norm[4] != other_norm[4]:
+                            continue
+                        if norm[3] and other_norm[3] and norm[3] != other_norm[3]:
+                            rec["identity_conflict_retained_row_ids"].append(retained_id)
+                            continue
+                        basis = "tracking_id"
+                    elif norm[3] and norm[3] == other_norm[3]:
+                        basis = "address_missing_tracking_id"
+                    else:
+                        continue
+                    rec["candidate_retained_row_ids"].append(retained_id)
+                    rec["candidate_retained_years"].append(int(other_year))
+                    bases.add(basis)
+                    edges[(retained_id, rec["phase"])] += 1
+                rec["identity_basis"] = ";".join(sorted(bases))
+            records.append(rec)
+    for rec in records:
+        ids = rec["candidate_retained_row_ids"]
+        rec["candidate_count"] = len(ids)
+        rec["retained_reporting_year_matches_phase_date"] = bool(ids)
+        rec["shared_candidate"] = any(edges[(i, rec["phase"])] > 1 for i in ids)
+        if rec["status"] != "insufficient_evidence":
+            if rec["identity_conflict_retained_row_ids"]:
+                rec["status"], rec["reason"] = "identity_conflict", "matching_tracking_id_conflicting_address"
+            elif len(ids) > 1:
+                rec["status"], rec["reason"] = "ambiguous_candidates", "multiple_eligible_retained_records"
+            elif rec["shared_candidate"]:
+                rec["status"], rec["reason"] = "shared_retained_candidate", "retained_phase_claimed_by_multiple_excluded_events"
+            elif ids:
+                rec["status"], rec["reason"] = "candidate_match", "potentially_repeated_activity_not_proven_duplicate"
+            else:
+                rec["reason"] = "no_counterpart_under_rule_in_final_retained_data"
+        for key in ("candidate_retained_row_ids", "candidate_retained_years", "identity_conflict_retained_row_ids"):
+            rec[key] = json.dumps(rec[key])
+    result = pd.DataFrame(records, columns=columns)
+    result["source_homes_parsed"] = pd.Series(
+        [rec["source_homes_parsed"] for rec in records], dtype=object
+    )
+    print("Phase comparison: candidate statuses mean potentially repeated activity, not proven duplicates.")
+    print(f"phase_comparison_inputs excluded={len(excluded)} retained={len(retained)} events={len(result)} candidate_edges={sum(edges.values())}")
+    for (phase, status), group in result.groupby(["phase", "status"], sort=True):
+        known = group["source_homes_parsed"].dropna()
+        print(f"phase_comparison phase={phase} status={status} events={len(group)} homes={sum(int(v) for v in known)} unknown_counts={len(group)-len(known)}")
+    print(f"phase_comparison_elapsed_seconds {perf_counter() - started:.6f}")
+    return result
 
 
 def _repair_quote_corruption(raw_text):
@@ -810,6 +963,134 @@ def _pair_xlsm_to_df_by_phase(xlsm_rows, df_idxs, df):
     return pairs
 
 
+_APPEND_PLACEHOLDERS = frozenset({
+    "", "NA", "NONE", "NAN", "UNKNOWN", "NOTAPPLICABLE", "0", "TBD", "NOTAVAILABLE",
+})
+
+
+def _append_identity_tokens(row):
+    """Return canonical scope and same-field aliases without changing raw payloads."""
+    scope = []
+    tokens = set()
+    for field in IDENTITY_KEY_COLS:
+        raw = _norm_str(row.get(field, ""))
+        compact = re.sub(r"[^A-Z0-9]", "", raw)
+        if field == "YEAR":
+            try:
+                number = Decimal(raw)
+                year = number if number.is_finite() and number == number.to_integral_value() else None
+            except (InvalidOperation, ValueError):
+                year = None
+            scope.append(year)
+            continue
+        if field in IDENTITY_KEY_COLS[:2]:
+            scope.append(compact if compact not in _APPEND_PLACEHOLDERS else None)
+            continue
+        if compact in _APPEND_PLACEHOLDERS:
+            continue
+        numeric_alias = None
+        if field != "STREET_ADDRESS":
+            if not compact.strip("0"):
+                continue
+            if re.fullmatch(r"[+-]?[0-9]+(?:\.[0-9]*)?", raw):
+                whole, _, fraction = raw.partition(".")
+                if not fraction.strip("0"):
+                    negative = whole.startswith("-")
+                    digits = whole.lstrip("+-").lstrip("0")
+                    if not digits:
+                        continue
+                    numeric_alias = ("-" if negative else "") + digits
+        tokens.add((field, compact))
+        if numeric_alias is not None:
+            tokens.add((field, numeric_alias))
+    return tuple(scope), frozenset(tokens)
+
+
+def _screen_pending_appends(original_identity_rows, current_df, pending_bundles):
+    """Withhold linked or insufficient proposals, retaining all origins for review."""
+    if not pending_bundles:
+        return [], []
+    aliases = []
+    probe_index = defaultdict(list)
+    reasons = [set() for _ in pending_bundles]
+    existing_evidence = [[] for _ in pending_bundles]
+    pending_evidence = [[] for _ in pending_bundles]
+    for ordinal, bundle in enumerate(pending_bundles):
+        origins = []
+        for origin, key in (("source", "identity"), ("mapped", "mapped")):
+            raw_identity = {field: bundle[key].get(field, "") for field in IDENTITY_KEY_COLS}
+            scope, tokens = _append_identity_tokens(raw_identity)
+            origins.append((origin, raw_identity, scope, tokens))
+            for token in sorted(tokens):
+                probe_index[token].append((ordinal, origin, scope))
+        aliases.append(origins)
+        if any(part is None for part in origins[1][2]) or not origins[1][3]:
+            reasons[ordinal].add("insufficient_append_identity")
+
+    # Stream each snapshot with its own scope/tokens and reuse normalized pending origins.
+    existing_targets = (
+        (snapshot, loaded_ordinal, raw_identity, scope, tokens)
+        for snapshot, frame in (("original", original_identity_rows), ("current", current_df))
+        for loaded_ordinal, values in enumerate(frame[IDENTITY_KEY_COLS].itertuples(index=False, name=None), 1)
+        for raw_identity in (dict(zip(IDENTITY_KEY_COLS, values)),)
+        for scope, tokens in (_append_identity_tokens(raw_identity),)
+    )
+    pending_targets = (
+        ("pending", (other, other_origin), raw_identity, scope, tokens)
+        for other, origins in enumerate(aliases)
+        for other_origin, raw_identity, scope, tokens in origins
+    )
+    # Invalid or already linked nodes still participate; every directed edge is retained.
+    for snapshot, target_ordinal, raw_identity, scope, tokens in chain(existing_targets, pending_targets):
+        for field, token in sorted(tokens.intersection(probe_index)):
+            for ordinal, origin, proposal_scope in probe_index[(field, token)]:
+                if snapshot == "pending" and target_ordinal[0] == ordinal:
+                    continue
+                if any(a is not None and b is not None and a != b
+                       for a, b in ((scope[0], proposal_scope[0]), (scope[2], proposal_scope[2]))):
+                    continue
+                if snapshot != "pending":
+                    reasons[ordinal].add("possible_existing_duplicate")
+                    existing_evidence[ordinal].append({
+                        "loaded_record_ordinal": target_ordinal, "snapshot": snapshot,
+                        "matched_field": field, "matched_token": token,
+                        "proposal_origin": origin, "existing_identity": raw_identity,
+                    })
+                else:
+                    other, other_origin = target_ordinal
+                    reasons[ordinal].add("possible_pending_duplicate")
+                    other_bundle = pending_bundles[other]
+                    pending_evidence[ordinal].append({
+                        "pending_ordinal": other + 1,
+                        "source_lines": other_bundle["ambiguity_context"]["source_info"]["source_lines"],
+                        "source_identity": aliases[other][0][1], "mapped_identity": aliases[other][1][1],
+                        "matched_field": field, "matched_token": token,
+                        "proposal_origin": origin, "other_origin": other_origin,
+                    })
+
+    accepted, withheld = [], []
+    for ordinal, bundle in enumerate(pending_bundles):
+        if not reasons[ordinal]:
+            accepted.append(bundle["mapped"])
+            continue
+        record = _build_ambiguity_record(
+            "append_candidate_review", bundle["xlsm_candidate_count"],
+            len({edge["loaded_record_ordinal"] for edge in existing_evidence[ordinal]}),
+            **bundle["ambiguity_context"],
+        )
+        for key, value in (
+            ("append_review_reasons", sorted(reasons[ordinal])),
+            ("append_candidate_mapped_identity", aliases[ordinal][1][1]),
+            ("append_existing_candidates", existing_evidence[ordinal]),
+            ("append_pending_candidates", pending_evidence[ordinal]),
+        ):
+            # Missing/nonfinite raw cells remain explicit strings in strict JSON.
+            plain_value = json.loads(json.dumps(value, default=str), parse_constant=str)
+            record[key] = json.dumps(plain_value, sort_keys=True, allow_nan=False)
+        withheld.append(record)
+    return accepted, withheld
+
+
 def _append_rows_with_dtype_defaults(df, mapped_rows):
     if not mapped_rows:
         return df
@@ -937,7 +1218,10 @@ def _process_truncated_identity(identity, identity_source_map, workbook_cache, d
         counters["upsert_update"] += 1
         return counters, records, None
     counters["upsert_append"] += 1
-    return counters, records, mapped
+    return counters, records, {
+        "identity": dict(identity), "mapped": mapped,
+        "ambiguity_context": ambiguity_ctx, "xlsm_candidate_count": len(matches),
+    }
 
 
 def main():
@@ -968,6 +1252,7 @@ def main():
     equivalent_duplicates_collapsed = 0
     ambiguous_records = []
     pending_appends = []
+    original_identity_rows = df[IDENTITY_KEY_COLS].copy()
     for _, identity in identities.iterrows():
         counters, identity_records, pending_append = _process_truncated_identity(
             identity, identity_source_map, workbook_cache, df, identity_index
@@ -984,7 +1269,12 @@ def main():
         if pending_append is not None:
             pending_appends.append(pending_append)
 
-    df = _append_rows_with_dtype_defaults(df, pending_appends)
+    accepted_appends, withheld_appends = _screen_pending_appends(original_identity_rows, df, pending_appends)
+    append_candidates_withheld = len(withheld_appends)
+    upsert_append -= append_candidates_withheld
+    upsert_ambiguous += append_candidates_withheld
+    ambiguous_records.extend(withheld_appends)
+    df = _append_rows_with_dtype_defaults(df, accepted_appends)
 
     _resolved_total = (
         upsert_update + upsert_append + upsert_paired
@@ -1006,6 +1296,7 @@ def main():
     df_clean, df_dropped_mismatch, df_dropped_year, df_dropped = _apply_validation_filters(df)
 
     df_clean, n_dedup = _deduplicate_apr(df_clean)
+    phase_comparison = _compare_date_excluded_phases(df_dropped_mismatch, df_clean)
     matched_truncated, unmatched_truncated = _classify_truncated_rows(df_clean, truncated_rows)
 
     df_clean.to_csv(cleaned_path, index=False)
@@ -1013,6 +1304,7 @@ def main():
     unmatched_truncated.to_csv(unmatched_truncated_path, index=False)
     pd.DataFrame(ambiguous_records).to_csv(ambiguous_truncated_path, index=False)
     df_dropped.to_csv(date_year_mismatch_path, index=False)
+    phase_comparison.to_csv(date_excluded_phase_comparison_path, index=False)
 
     metrics = [
         ("rows_parsed_before_fix", rows_before_fix),
@@ -1028,6 +1320,7 @@ def main():
         ("truncated_identities_detected", len(identities)),
         ("truncated_identities_resolved_update", upsert_update),
         ("truncated_identities_resolved_append", upsert_append),
+        ("append_candidates_withheld", append_candidates_withheld),
         ("truncated_identities_resolved_paired", upsert_paired),
         ("truncated_rows_updated_via_pairing", upsert_rows_via_pairing),
         ("truncated_identities_unresolved", upsert_unresolved),

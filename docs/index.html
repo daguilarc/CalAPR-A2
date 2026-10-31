@@ -3,18 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>California Multifamily Housing APR Maps</title>
+  <title>California Housing APR Maps</title>
   <script src="data/releases/2018-2024/plotly.min.js" defer></script>
   <style>
     :root { font-family: system-ui, sans-serif; color: #202124; background: #f8f9fb; }
     body { max-width: 1200px; margin: auto; padding: 1.25rem; }
     h1 { margin-bottom: .25rem; }
     .intro { margin-top: 0; color: #555; }
-    .controls { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.25rem 0; }
-    label { display: grid; gap: .35rem; font-weight: 600; }
-    select { max-width: 100%; padding: .55rem; font: inherit; }
-    #map-geography { min-width: 17rem; }
-    #map-metric { min-width: min(32rem, 90vw); }
+    .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1rem; margin: 1.25rem 0; }
+    label { display: grid; gap: .35rem; font-weight: 600; min-width: 0; }
+    select { width: 100%; min-width: 0; padding: .55rem; font: inherit; }
     #map-chart { min-height: 600px; background: white; border: 1px solid #ddd; }
     #status { min-height: 1.5rem; }
     footer { margin-top: 1.5rem; border-top: 1px solid #ddd; padding-top: 1rem; color: #555; font-size: .9rem; }
@@ -22,91 +20,155 @@
   </style>
 </head>
 <body>
-  <h1>California Multifamily Housing APR Maps</h1>
-  <p class="intro">2018–2024 HCD Annual Progress Reports · Projects with 5 or more dwelling units</p>
-  <div class="controls">
-    <label>Geography view
-      <select id="map-geography">
-        <option value="incorporated_cities">Incorporated cities</option>
-        <option value="whole_counties">Whole counties</option>
-        <option value="cities_plus_unincorporated" selected>Cities + unincorporated county</option>
-      </select>
-    </label>
-    <label>Map metric
-      <select id="map-metric"></select>
-    </label>
-  </div>
-  <p id="status" role="status">Loading archived maps…</p>
-  <div id="map-chart" role="img" aria-label="Interactive map of California multifamily housing metrics"></div>
+  <h1>California Housing APR Maps</h1>
+  <p class="intro">2018–2024 HCD Annual Progress Reports · Table A2 housing activity</p>
+  <p id="sources">Source: <a href="https://data.ca.gov/dataset/housing-element-annual-progress-report-apr-data-by-jurisdiction-and-year">California HCD Annual Progress Reports, Table A2</a> · <a href="data/releases/2018-2024/map_data.json">Map data derived from cleaned Table A2 (map_data.json)</a> · <a href="https://api.census.gov/data/2024/acs/acs5/groups/B01003.html">U.S. Census Bureau, 2020–2024 ACS 5-Year Estimates, Table B01003 (Total Population), variable B01003_001E</a>.</p>
+  <p><a href="cleaning.html">How the data is cleaned →</a></p>
+  <div class="controls" id="map-controls"></div>
+  <p id="status" role="status">Loading housing maps…</p>
+  <div id="map-chart" role="img" aria-label="Interactive map of California housing activity"></div>
   <footer>
-    <p>Values are certificates of occupancy per 1,000 residents. This is the archived 2018–2024 map release; changing the controls does not recalculate the data.</p>
-    <p>Source: <a href="https://data.ca.gov/dataset/housing-element-annual-progress-report-apr-data-by-jurisdiction-and-year">California HCD Annual Progress Reports</a>. Population denominators use the 2020–2024 American Community Survey 5-Year Estimates.</p>
+    <p id="quantity-note"></p>
+    <p>Fill shows units per 1,000 residents; hover shows units and population. Colors use logarithmic spacing. County outlines, including the state perimeter, stay visible in every view. Blank areas in the city view are outside incorporated cities.</p>
+    <p id="data-vintage">Loading Table A2 build and population provenance…</p>
+    <p id="coverage-note"></p>
   </footer>
   <script>
     window.addEventListener("load", async () => {
       const base = "data/releases/2018-2024";
       const status = document.getElementById("status");
-      const metricSelect = document.getElementById("map-metric");
-      const geographySelect = document.getElementById("map-geography");
       const chart = document.getElementById("map-chart");
       try {
         if (!window.Plotly) throw new Error("Map library did not load");
-        const [metrics, collection] = await Promise.all(
-          ["map_metrics.json", "maps.geojson"].map(async name => {
-            const response = await fetch(`${base}/${name}`);
+        const [data, collection, provenance] = await Promise.all(
+          ["map_data.json", "maps.geojson", "provenance.json"].map(async name => {
+            const response = await fetch(`${base}/${name}`, { cache: "no-store" });
             if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
             return response.json();
           })
         );
-        for (const metric of metrics) {
-          const option = document.createElement("option");
-          option.value = metric.key;
-          option.textContent = metric.title;
-          metricSelect.append(option);
+        if (data.schema_version !== 2 || data.feature_ids.length !== collection.features.length ||
+            data.feature_ids.some((id, i) => id !== collection.features[i].properties.feature_id)) {
+          throw new Error("Housing data and geometry schema do not match");
+        }
+        document.getElementById("data-vintage").textContent =
+          `${provenance.hcd_apr_range} HCD Table A2 · built ${new Date(provenance.built_at).toLocaleString()} · population: ${provenance.reference.population_vintage}.`;
+        const unknownTenure = provenance.coverage.unclassified_tenure_excluded_from_both;
+        const unknownHousing = provenance.coverage.unknown_housing;
+        document.getElementById("coverage-note").textContent =
+          `Rent + Own includes owner + renter; ${unknownTenure.rows.toLocaleString()} unclassified tenure rows are excluded (net entitlements/building permits/certificates of occupancy: ${data.axes.find(a => a.key === "stage").choices.map(s => unknownTenure.primitive_units[data.primitive_columns[s.measure_offset]].toLocaleString()).join(" / ")}). All housing also includes ${unknownHousing.rows.toLocaleString()} rows with unknown or malformed housing types; named housing types exclude them. All projects includes other and missing programs.`;
+
+        // Traverse all whole counties before filtering any selected fill geography.
+        const lon = [], lat = [];
+        for (const feature of collection.features.filter(f => f.properties.geo_type === "county_whole")) {
+          const polygons = feature.geometry.type === "Polygon" ? [feature.geometry.coordinates] : feature.geometry.coordinates;
+          for (const polygon of polygons) {
+            for (const point of polygon[0]) { lon.push(point[0]); lat.push(point[1]); }
+            lon.push(null); lat.push(null);
+          }
+        }
+        const bounds = [
+          [Math.min(...lon.filter(value => value !== null)), Math.min(...lat.filter(value => value !== null))],
+          [Math.max(...lon.filter(value => value !== null)), Math.max(...lat.filter(value => value !== null))]
+        ];
+        let initialCameraFitted = false;
+        const boundaryTrace = {
+          type: "scattermapbox", mode: "lines", lon, lat,
+          line: { color: "#475569", width: 1 }, hoverinfo: "skip", showlegend: false
+        };
+        const selects = {};
+        for (const axis of data.axes) {
+          const label = document.createElement("label");
+          label.textContent = axis.label;
+          const select = document.createElement("select");
+          select.id = `map-${axis.key}`;
+          for (const choice of axis.choices) {
+            const option = document.createElement("option");
+            option.value = choice.key;
+            option.textContent = choice.label;
+            select.append(option);
+          }
+          select.value = axis.default;
+          select.addEventListener("change", renderMap);
+          selects[axis.key] = select;
+          label.append(select);
+          document.getElementById("map-controls").append(label);
+        }
+        function per1000(numerator, population) {
+          return typeof population === "number" && population > 0 ? numerator / population * 1000 : null;
         }
         function renderMap() {
-          const metric = metrics.find(item => item.key === metricSelect.value);
-          const mode = geographySelect.value;
-          const types = mode === "incorporated_cities" ? ["city"]
-            : mode === "whole_counties" ? ["county_whole"]
-            : ["city", "county_residual"];
-          const features = collection.features.filter(feature => types.includes(feature.properties.geo_type));
-          const values = features.map(feature => feature.properties[metric.metric_col]);
-          const finite = values.map(Number).filter(Number.isFinite);
-          const geojson = { ...collection, features };
-          const trace = {
-            type: "choroplethmapbox", geojson,
-            locations: features.map(feature => feature.properties.feature_id),
-            featureidkey: "properties.feature_id", z: values,
-            colorscale: metric.cmap_kind === "div" ? "RdYlGn" : "PuRd",
-            marker: { opacity: .92, line: { color: "rgba(255,255,255,.72)", width: .45 } },
-            text: features.map(feature => feature.properties.city_name || feature.properties.county_name),
-            hovertemplate: "%{text}<br>%{z:.2f} per 1,000 residents<extra></extra>"
-          };
-          if (finite.length) {
-            if (metric.cmap_kind === "div") {
-              const bound = Math.max(...finite.map(value => Math.abs(value)));
-              Object.assign(trace, { zmin: -bound, zmid: 0, zmax: bound });
-            } else {
-              Object.assign(trace, { zmin: Math.min(...finite), zmax: Math.max(...finite) });
+          const selected = Object.fromEntries(data.axes.map(axis =>
+            [axis.key, axis.choices.find(choice => choice.key === selects[axis.key].value)]));
+          const displayLabel = choice => choice.labels?.[selected.affordability.stage_label_variant] ?? choice.label;
+          data.axes.forEach(axis => axis.choices.forEach((choice, index) => {
+            selects[axis.key].children[index].textContent = displayLabel(choice);
+          }));
+          const numerators = new Array(data.feature_ids.length).fill(0);
+          const indices = selected.affordability.measure_indices.map(index => 4 + selected.stage.measure_offset + index);
+          for (const row of data.partitions) {
+            if (selected.housing.buckets.includes(row[1]) && selected.tenure.buckets.includes(row[2]) && selected.program.buckets.includes(row[3])) {
+              numerators[row[0]] += indices.reduce((sum, index) => sum + row[index], 0);
             }
           }
-          status.textContent = `${features.length} jurisdictions · ${metric.title} · per 1,000 residents`;
-          Plotly.react(chart, [trace], {
-            dragmode: "zoom", uirevision: `${mode}:${metric.key}`,
-            mapbox: { style: "white-bg", center: { lat: 37.2, lon: -119.5 }, zoom: 4.5 },
+          const features = [], values = [], customdata = [];
+          collection.features.forEach((feature, index) => {
+            if (!selected.geography.geo_types.includes(feature.properties.geo_type)) return;
+            features.push(feature);
+            values.push(per1000(numerators[index], feature.properties.population));
+            customdata.push([numerators[index], feature.properties.population]);
+          });
+          const finite = values.filter(value => typeof value === "number" && Number.isFinite(value));
+          let zmin = finite.length ? Math.min(...finite) : 0;
+          let zmax = finite.length ? Math.max(...finite) : 1;
+          if (zmin === zmax) zmax = zmin + Math.max(1, Math.abs(zmin) * .01);
+          const title = data.axes.map(axis => displayLabel(selected[axis.key])).join(" · ");
+          document.getElementById("quantity-note").textContent = selected.affordability.explanation;
+          chart.setAttribute("aria-label", title);
+          const trace = {
+            type: "choroplethmapbox", geojson: { ...collection, features },
+            locations: features.map(feature => feature.properties.feature_id),
+            featureidkey: "properties.feature_id", z: values, customdata, zmin, zmax,
+            colorscale: selected.geography.colorscale.map(([fraction, color]) => [
+              fraction === 0 || fraction === 1 ? fraction : Math.expm1(fraction * Math.log1p(zmax-zmin))/(zmax-zmin), color
+            ]),
+            colorbar: { title: { text: "Per 1,000<br>residents" }, thickness: 16 },
+            marker: { opacity: 1, line: { color: "rgba(255,255,255,.72)", width: .45 } },
+            text: features.map(feature => feature.properties.city_name || feature.properties.county_name),
+            hovertemplate: "%{text}<br>%{customdata[0]:,.0f} units<br>%{z:.2f} per 1,000 residents<br>Population: %{customdata[1]:,.0f}<extra></extra>"
+          };
+          status.textContent = `${features.length} jurisdictions · Units per 1,000 residents`;
+          Plotly.react(chart, [trace, boundaryTrace], {
+            height: window.innerWidth < 650 ? 520 : 600,
+            dragmode: "zoom", uirevision: "california-housing",
+            mapbox: {
+              style: "white-bg", uirevision: "california-housing",
+              ...(initialCameraFitted ? {
+                center: chart.layout.mapbox.center, zoom: chart.layout.mapbox.zoom,
+                bearing: chart.layout.mapbox.bearing, pitch: chart.layout.mapbox.pitch
+              } : { center: { lat: 37.2, lon: -119.5 }, zoom: 4.5 })
+            },
             margin: { l: 0, r: 0, t: 0, b: 0 }
-          }, { responsive: true, scrollZoom: true }).then(gd => {
-            const map = gd._fullLayout.mapbox._subplot.map;
+          }, { responsive: true, scrollZoom: true }).then(async gd => {
+            const subplot = gd._fullLayout.mapbox._subplot;
+            const map = subplot.map;
             const resize = () => Plotly.Plots.resize(gd);
+            if (!initialCameraFitted) {
+              await resize();
+              map.resize();
+              const camera = map.cameraForBounds(bounds, { padding: 15 });
+              if (!camera) throw new Error("California bounds could not be fitted");
+              const center = { lon: camera.center.lng, lat: camera.center.lat };
+              await Plotly.relayout(gd, { "mapbox.center": center, "mapbox.zoom": camera.zoom });
+              subplot.viewInitial = { center, zoom: camera.zoom, bearing: map.getBearing(), pitch: map.getPitch() };
+              initialCameraFitted = true;
+            }
             if (map.loaded()) resize(); else map.once("idle", resize);
           }).catch(error => { status.textContent = `Map could not render: ${error.message}`; });
         }
-        metricSelect.addEventListener("change", renderMap);
-        geographySelect.addEventListener("change", renderMap);
         renderMap();
       } catch (error) {
-        status.textContent = `Archived maps could not be loaded: ${error.message}`;
+        status.textContent = `Housing maps could not be loaded: ${error.message}`;
         console.error(error);
       }
     });

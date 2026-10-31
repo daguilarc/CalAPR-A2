@@ -5,6 +5,8 @@
 # diagnostics, chart PNGs, flowcharts. The .xlsm source workbooks are tracked.
 *.csv
 *.png
+!docs/assets/apr-field18-example.png
+!docs/assets/hesperia2023-AN27.png
 *.log
 *.zip
 *.xlsx
