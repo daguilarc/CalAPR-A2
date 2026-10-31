@@ -49,7 +49,7 @@ Selection definitions:
   tenure selections are preserved. Tenure/program/geography changes do not
   control the suffix.
 - Owner (for sale) and Renter use the chart flags; Both is their union, excluding
-  unclassified tenure. Provenance and the page report the excluded rows/units.
+  unclassified tenure. Provenance reports the excluded rows and units.
 - All projects includes ordinary/missing program values. Density bonus includes
   rows reporting DB; Non-bonus inclusionary includes INC without DB.
 - Affordability choices include separate Low and Very Low selections and the
