@@ -15,6 +15,7 @@
     select { width: 100%; min-width: 0; padding: .55rem; font: inherit; }
     #map-chart { min-height: 600px; background: white; border: 1px solid #ddd; }
     #status { min-height: 1.5rem; }
+    #status:empty { display: none; }
     footer { margin-top: 1.5rem; border-top: 1px solid #ddd; padding-top: 1rem; color: #555; font-size: .9rem; }
     @media (max-width: 650px) { body { padding: .75rem; } #map-chart { min-height: 520px; } }
   </style>
@@ -28,10 +29,7 @@
   <p id="status" role="status">Loading housing maps…</p>
   <div id="map-chart" role="img" aria-label="Interactive map of California housing activity"></div>
   <footer>
-    <p id="quantity-note"></p>
-    <p>Fill shows units per 1,000 residents; hover shows units and population. Colors use logarithmic spacing. County outlines, including the state perimeter, stay visible in every view. Blank areas in the city view are outside incorporated cities.</p>
-    <p id="data-vintage">Loading Table A2 build and population provenance…</p>
-    <p id="coverage-note"></p>
+    <p><a href="https://github.com/daguilarc">Diego Aguilar-Canabal</a> · 2026 · <a href="https://github.com/daguilarc/CalAPR-A2/blob/main/LICENSE">MIT License</a></p>
   </footer>
   <script>
     window.addEventListener("load", async () => {
@@ -40,8 +38,8 @@
       const chart = document.getElementById("map-chart");
       try {
         if (!window.Plotly) throw new Error("Map library did not load");
-        const [data, collection, provenance] = await Promise.all(
-          ["map_data.json", "maps.geojson", "provenance.json"].map(async name => {
+        const [data, collection] = await Promise.all(
+          ["map_data.json", "maps.geojson"].map(async name => {
             const response = await fetch(`${base}/${name}`, { cache: "no-store" });
             if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
             return response.json();
@@ -51,12 +49,6 @@
             data.feature_ids.some((id, i) => id !== collection.features[i].properties.feature_id)) {
           throw new Error("Housing data and geometry schema do not match");
         }
-        document.getElementById("data-vintage").textContent =
-          `${provenance.hcd_apr_range} HCD Table A2 · built ${new Date(provenance.built_at).toLocaleString()} · population: ${provenance.reference.population_vintage}.`;
-        const unknownTenure = provenance.coverage.unclassified_tenure_excluded_from_both;
-        const unknownHousing = provenance.coverage.unknown_housing;
-        document.getElementById("coverage-note").textContent =
-          `Rent + Own includes owner + renter; ${unknownTenure.rows.toLocaleString()} unclassified tenure rows are excluded (net entitlements/building permits/certificates of occupancy: ${data.axes.find(a => a.key === "stage").choices.map(s => unknownTenure.primitive_units[data.primitive_columns[s.measure_offset]].toLocaleString()).join(" / ")}). All housing also includes ${unknownHousing.rows.toLocaleString()} rows with unknown or malformed housing types; named housing types exclude them. All projects includes other and missing programs.`;
 
         // Traverse all whole counties before filtering any selected fill geography.
         const lon = [], lat = [];
@@ -123,7 +115,6 @@
           let zmax = finite.length ? Math.max(...finite) : 1;
           if (zmin === zmax) zmax = zmin + Math.max(1, Math.abs(zmin) * .01);
           const title = data.axes.map(axis => displayLabel(selected[axis.key])).join(" · ");
-          document.getElementById("quantity-note").textContent = selected.affordability.explanation;
           chart.setAttribute("aria-label", title);
           const trace = {
             type: "choroplethmapbox", geojson: { ...collection, features },
@@ -132,12 +123,12 @@
             colorscale: selected.geography.colorscale.map(([fraction, color]) => [
               fraction === 0 || fraction === 1 ? fraction : Math.expm1(fraction * Math.log1p(zmax-zmin))/(zmax-zmin), color
             ]),
-            colorbar: { title: { text: "Per 1,000<br>residents" }, thickness: 16 },
+            colorbar: { title: { text: "Per 1,000<br>residents" }, thickness: 16, x: -0.02, xanchor: "right" },
             marker: { opacity: 1, line: { color: "rgba(255,255,255,.72)", width: .45 } },
             text: features.map(feature => feature.properties.city_name || feature.properties.county_name),
             hovertemplate: "%{text}<br>%{customdata[0]:,.0f} units<br>%{z:.2f} per 1,000 residents<br>Population: %{customdata[1]:,.0f}<extra></extra>"
           };
-          status.textContent = `${features.length} jurisdictions · Units per 1,000 residents`;
+          status.textContent = '';
           Plotly.react(chart, [trace, boundaryTrace], {
             height: window.innerWidth < 650 ? 520 : 600,
             dragmode: "zoom", uirevision: "california-housing",
