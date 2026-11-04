@@ -9,7 +9,7 @@ The data-cleaning guide walks through the Python script with flowcharts, explain
 ## Housing maps
 
 The static GitHub Pages site in `docs/` provides independent Geography,
-Housing type, Development stage, Tenure, Inclusionary Program, and Affordability selectors.
+Housing type, Development stage, Tenure, Inclusionary Program, Income Restrictions, and Year selectors.
 It reads committed geometry, a compact sparse numerator cube, and generated
 selector metadata. The browser combines atomic counts and divides by the fixed
 population to show units per 1,000 residents, with units/population in hover.
@@ -44,20 +44,26 @@ Selection definitions:
   **net of demolitions**, using the chart's existing stage assignment and signed
   `ent_net`, `bp_net`, `co_net` values. Negative corrections are retained. Stage
   choices/title use Entitlements, Building Permits, and Certificates of Occupancy,
-  appending exactly “, Net of Demolitions” only for All units. Selecting an
-  affordability tier uses the base stage names with nothing appended. Stage and
+  appending exactly “, Net of Demolitions” only for All (with+without restrictions). Selecting a
+  reported income category uses the base stage names with nothing appended. Stage and
   tenure selections are preserved. Tenure/program/geography changes do not
   control the suffix.
 - Owner (for sale) and Renter use the chart flags; Both is their union, excluding
   unclassified tenure. Provenance reports the excluded rows and units.
 - All projects includes ordinary/missing program values. Density bonus includes
   rows reporting DB; Non-bonus inclusionary includes INC without DB.
-- Affordability choices include separate Low and Very Low selections and the
+- Income Restrictions choices include separate Low and Very Low selections and the
   combined **Low + Very Low** option. Income tiers use reported deed-restricted
   columns; ELI and non-deed-restricted units are excluded. Deed-restricted units
   sums Low, Very Low and Moderate. Demolition allocation is unavailable for
   income tiers. Housing defaults to Five or more units. All choices apply
-  independently of housing type/program.
+  independently of housing type/program. The default is **All (with+without restrictions)**.
+  **None (No Deed Restrictions)** sums reported Very Low, Low and Moderate
+  non-deed-restricted columns plus above-moderate units separately for each stage.
+  It excludes stage-less ELI and uses reported counts without demolition allocation;
+
+- Year defaults to **All Years**, with separate 2018–2024 choices. This is the
+  cleaned APR reporting YEAR, not the year of a development-stage date.
 - Whole county includes all reporting jurisdictions in that county. Each
   unincorporated residual is whole county minus mapped cities for every atomic
   count. Rates with absent/nonpositive population are null.

@@ -32,11 +32,16 @@ BUCKETS = {
     'housing': [*UNIT_CAT_CODES_TOP_TO_BOTTOM, 'unknown'],
     'tenure': ['owner', 'renter', 'unknown'],
     'program': ['db', 'inc_only', 'other'],
+    'year': list(range(YEARS[0], YEARS[1] + 1)),
 }
+MEASURES = {'net': None, 'low_dr': [('LOW', 'dr')], 'vlow_dr': [('VLOW', 'dr')],
+            'mod_dr': [('MOD', 'dr')],
+            'nonrestricted': [('VLOW', 'ndr'), ('LOW', 'ndr'), ('MOD', 'ndr'), ('ABOVE_MOD', None)]}
 PRIMITIVES = [f"{stage['key']}_{measure}" for stage in STAGE_METADATA
-              for measure in ('net', 'low_dr', 'vlow_dr', 'mod_dr')]
+              for measure in MEASURES]
 NET_POLICY = 'Shared chart raw stage net, including negative corrections; no clipping.'
 TIER_POLICY = 'Reported income-tier units; demolition allocation unavailable. DR excludes NDR and stage-less ELI.'
+UNRESTRICTED_POLICY = 'Reported VLOW, LOW and MOD non-deed-restricted units plus above-moderate units; no demolition allocation or stage-less ELI.'
 CITY_ALIASES = {
     'COMMERCE': 'CITY OF COMMERCE', 'INDUSTRY': 'CITY OF INDUSTRY',
     'CRESCENT': 'CRESCENT CITY', 'CALIFORNIA': 'CALIFORNIA CITY',
@@ -85,7 +90,7 @@ def county_name(value):
 
 
 def axis_manifest():
-    """The sole selector definitions; the browser reads membership and measure offsets."""
+    """The sole selector definitions; the browser reads membership and named measures."""
     def choices(keys, labels, memberships):
         return [dict(key=k, label=l, buckets=m) for k, l, m in zip(keys, labels, memberships)]
 
@@ -101,30 +106,34 @@ def axis_manifest():
             {'key': 'cities_plus_unincorporated', 'label': 'Cities + unincorporated county', 'geo_types': ['city','county_residual'],
              'colorscale': [[0,'rgba(250,245,255,.25)'],[.25,'rgba(233,213,255,.5)'],[.5,'rgba(192,132,252,.7)'],[.75,'rgba(147,51,234,.88)'],[1,'#581c87']]},
         ]},
-        {'key': 'housing', 'label': 'Housing type', 'default': '5+', 'choices': housing},
+        {'key': 'housing', 'label': 'Housing type', 'default': '5+', 'row_field': 'housing_bucket', 'choices': housing},
         {'key': 'stage', 'label': 'Development stage', 'default': 'CO', 'choices': [
             {'key': s['key'], 'label': s['label'] + ', Net of Demolitions',
              'labels': {'net': s['label'] + ', Net of Demolitions',
                         'reported': s['label']},
-             'measure_offset': i * 4}
-            for i, s in enumerate(STAGE_METADATA)]},
-        {'key': 'tenure', 'label': 'Tenure', 'default': 'both', 'choices': choices(
+             'stage': s['key']}
+            for s in STAGE_METADATA]},
+        {'key': 'tenure', 'label': 'Tenure', 'default': 'both', 'row_field': 'tenure_bucket', 'choices': choices(
             ['owner','renter','both'], ['Owner (for sale)','Renter','Rent + Own'], [[0],[1],[0,1]])},
-        {'key': 'program', 'label': 'Inclusionary Program', 'default': 'all', 'choices': choices(
+        {'key': 'program', 'label': 'Inclusionary Program', 'default': 'all', 'row_field': 'program_bucket', 'choices': choices(
             ['all','db','inc_only'], ['All projects','Density bonus','Non-bonus inclusionary'], [[0,1,2],[0],[1]])},
-        {'key': 'affordability', 'label': 'Affordability', 'default': 'all', 'choices': [
-            {'key': 'all', 'label': 'All units', 'measure_indices': [0], 'stage_label_variant': 'net', 'explanation': 'Net of demolitions.'},
-            {'key': 'dr', 'label': 'Deed-restricted units', 'measure_indices': [1,2,3], 'stage_label_variant': 'reported', 'explanation': TIER_POLICY},
-            {'key': 'low', 'label': 'Low', 'measure_indices': [1], 'stage_label_variant': 'reported', 'explanation': TIER_POLICY},
-            {'key': 'vlow', 'label': 'Very Low', 'measure_indices': [2], 'stage_label_variant': 'reported', 'explanation': TIER_POLICY},
-            {'key': 'vlow_low', 'label': 'Low + Very Low', 'measure_indices': [1,2], 'stage_label_variant': 'reported', 'explanation': TIER_POLICY},
-            {'key': 'mod', 'label': 'Moderate-income deed-restricted units', 'measure_indices': [3], 'stage_label_variant': 'reported', 'explanation': TIER_POLICY},
+        {'key': 'affordability', 'label': 'Income Restrictions', 'default': 'all', 'choices': [
+            {'key': 'all', 'label': 'All (with+without restrictions)', 'measures': ['net'], 'stage_label_variant': 'net', 'explanation': 'Net of demolitions.'},
+            {'key': 'none', 'label': 'None (No Deed Restrictions)', 'measures': ['nonrestricted'], 'stage_label_variant': 'reported', 'explanation': UNRESTRICTED_POLICY},
+            {'key': 'dr', 'label': 'Deed-restricted units', 'measures': ['low_dr','vlow_dr','mod_dr'], 'stage_label_variant': 'reported', 'explanation': TIER_POLICY},
+            {'key': 'low', 'label': 'Low', 'measures': ['low_dr'], 'stage_label_variant': 'reported', 'explanation': TIER_POLICY},
+            {'key': 'vlow', 'label': 'Very Low', 'measures': ['vlow_dr'], 'stage_label_variant': 'reported', 'explanation': TIER_POLICY},
+            {'key': 'vlow_low', 'label': 'Low + Very Low', 'measures': ['low_dr','vlow_dr'], 'stage_label_variant': 'reported', 'explanation': TIER_POLICY},
+            {'key': 'mod', 'label': 'Moderate-income deed-restricted units', 'measures': ['mod_dr'], 'stage_label_variant': 'reported', 'explanation': TIER_POLICY},
         ]},
+        {'key': 'year', 'label': 'Year', 'default': 'all', 'row_field': 'year_bucket', 'choices': choices(
+            ['all', *map(str, BUCKETS['year'])], ['All Years', *map(str, BUCKETS['year'])],
+            [list(range(len(BUCKETS['year']))), *[[i] for i in range(len(BUCKETS['year']))]])},
     ]
 
 
 def prepare_rows(data_path):
-    """Run shared chart preparation, then create twelve additive primitives and exclusive buckets."""
+    """Run shared chart preparation, then create fifteen additive primitives and exclusive buckets."""
     frame, _ = _load_and_derive_apr_dataframe(data_path=data_path)
     source_rows = len(frame)
     frame = frame.loc[frame['YEAR'].between(*YEARS)].copy()
@@ -133,14 +142,15 @@ def prepare_rows(data_path):
     values = {}
     for stage in STAGE_METADATA:
         key, prefix = stage['key'], stage['prefix']
-        values[f'{key}_net'] = frame[stage['net_column']]
-        for tier, measure in [('LOW', 'low_dr'), ('VLOW', 'vlow_dr')]:
-            values[f'{key}_{measure}'] = sum(to_numeric_safe(frame[col]) for col in income_col_names(prefix, tier, 'dr'))
-        values[f'{key}_mod_dr'] = to_numeric_safe(frame[income_col_names(prefix, 'MOD', 'dr')[0]])
+        for measure, sources in MEASURES.items():
+            values[f'{key}_{measure}'] = (frame[stage['net_column']] if sources is None else
+                sum(to_numeric_safe(frame[col]) for tier, restriction in sources
+                    for col in income_col_names(prefix, tier, restriction)))
     rows = pd.DataFrame(values, index=frame.index)
     # Exact chart codes: unknown/malformed codes stay outside named housing choices.
     rows['housing'] = frame['UNIT_CAT'].map({k: i for i, k in enumerate(BUCKETS['housing'][:-1])}).fillna(6).astype(int)
     rows['tenure'] = np.select([frame['is_owner'], frame['is_rental']], [0, 1], default=2)
+    rows['year'] = frame['YEAR'].map({year: i for i, year in enumerate(BUCKETS['year'])}).astype(int)
     rows['program'] = np.select([frame['has_db'], frame['has_inc_only']], [0, 1], default=2)
     rows['jurisdiction'] = frame['JURIS_NAME'].map(normalize_name)
     rows['county'] = frame['CNTY_NAME'].map(county_name)
@@ -181,24 +191,24 @@ def build_cube(rows, reference):
     if unmatched.any():
         evidence = rows.loc[unmatched, ['source_jurisdiction','jurisdiction','county',*PRIMITIVES]]
         raise ValueError('Active source jurisdictions missing from city reference (source indices and rows):\n' + evidence.to_string())
-    group_columns = ['jurisdiction','county','is_county','housing','tenure','program']
+    group_columns = ['jurisdiction','county','is_county','housing','tenure','program','year']
     grouped = rows.groupby(group_columns, dropna=False, sort=True)[PRIMITIVES].sum()
     partitions = defaultdict(lambda: np.zeros(len(PRIMITIVES)))
     # Each atomic source group feeds county_whole; city groups also feed city. Residual is subtraction.
-    for (jurisdiction, county, is_county, housing, tenure, program), numbers in grouped.iterrows():
+    for (jurisdiction, county, is_county, housing, tenure, program, year), numbers in grouped.iterrows():
         values = numbers.to_numpy(dtype=float)
         if not values.any():
             continue
         county_fips = counties[county]
-        bucket = (int(housing), int(tenure), int(program))
+        bucket = (int(housing), int(tenure), int(program), int(year))
         partitions[(whole[county_fips], *bucket)] += values
         partitions[(residual[county_fips], *bucket)] += values
         if not is_county:
             partitions[(cities[(jurisdiction, county_fips)], *bucket)] += values
             partitions[(residual[county_fips], *bucket)] -= values
-    data = {'schema_version': 2, 'axes': axis_manifest(), 'buckets': BUCKETS,
+    data = {'schema_version': 3, 'axes': axis_manifest(), 'buckets': BUCKETS,
             'primitive_columns': PRIMITIVES,
-            'row_schema': ['feature_index','housing_bucket','tenure_bucket','program_bucket',*PRIMITIVES],
+            'row_schema': ['feature_index','housing_bucket','tenure_bucket','program_bucket','year_bucket',*PRIMITIVES],
             'feature_ids': [f['properties']['feature_id'] for f in features],
             'partitions': [[*key, *values.tolist()] for key, values in sorted(partitions.items()) if values.any()]}
     return collection, data
@@ -209,10 +219,14 @@ def compose_counts(data, selection):
     selected = {axis['key']: next(c for c in axis['choices'] if c['key'] == selection.get(axis['key'], axis['default']))
                 for axis in data['axes']}
     result = np.zeros(len(data['feature_ids']))
-    indices = [4 + selected['stage']['measure_offset'] + i for i in selected['affordability']['measure_indices']]
+    positions = {name: index for index, name in enumerate(data['row_schema'])}
+    dimensions = [(positions[axis['row_field']], selected[axis['key']]['buckets'])
+                  for axis in data['axes'] if 'row_field' in axis]
+    indices = [positions[f"{selected['stage']['stage']}_{measure}"]
+               for measure in selected['affordability']['measures']]
     for row in data['partitions']:
-        if all(row[column] in selected[key]['buckets'] for column, key in enumerate(('housing','tenure','program'), 1)):
-            result[row[0]] += sum(row[index] for index in indices)
+        if all(row[column] in membership for column, membership in dimensions):
+            result[row[positions['feature_index']]] += sum(row[index] for index in indices)
     return result
 
 
@@ -235,6 +249,8 @@ def main():
         'hcd_apr_range': '2018–2024', 'hcd_input': args.input.name, 'hcd_input_sha256': digest,
         'reference_sha256': hashlib.sha256(reference_bytes).hexdigest(),
         'reference': reference['reference'], 'net_policy': NET_POLICY, 'affordability_policy': TIER_POLICY,
+        'unrestricted_policy': UNRESTRICTED_POLICY,
+        'year_policy': 'Cleaned APR reporting YEAR, not a stage-date year.',
         'tenure_policy': 'Both is owner plus renter; unclassified tenure excluded.',
         'housing_policy': 'All housing includes unknown/malformed types; named types use exact chart codes.',
         'program_policy': 'Density bonus includes rows reporting DB; non-bonus inclusionary includes INC without DB; All projects includes other/missing programs.',
@@ -247,7 +263,7 @@ def main():
     print(f'Input SHA-256: {digest}')
     print('Source primitive sums:', {key: float(rows[key].sum()) for key in PRIMITIVES})
     print('Coverage:', json.dumps(stats['coverage'], sort_keys=True))
-    sale = compose_counts(data, {'housing':'5+', 'tenure':'owner'})
+    sale = compose_counts(data, {'housing':'5+', 'tenure':'owner', 'affordability':'all'})
     county_sale = [sale[i] for i,f in enumerate(collection['features']) if f['properties']['geo_type']=='county_whole']
     print(f'MF owner CO: {sum(v > 0 for v in county_sale)} positive counties, {sum(county_sale)} units')
     print('map_data.json bytes:', (args.output / 'map_data.json').stat().st_size)

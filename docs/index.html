@@ -11,6 +11,7 @@
     h1 { margin-bottom: .25rem; }
     .intro { margin-top: 0; color: #555; }
     .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1rem; margin: 1.25rem 0; }
+    @media (min-width: 1050px) { .controls { grid-template-columns: repeat(3, minmax(0, 1fr)); } .year-control { grid-column: 1 / -1; } .year-control select { width: calc((100% - 2rem) / 3); } }
     label { display: grid; gap: .35rem; font-weight: 600; min-width: 0; }
     select { width: 100%; min-width: 0; padding: .55rem; font: inherit; }
     #map-chart { min-height: 600px; background: white; border: 1px solid #ddd; }
@@ -45,7 +46,7 @@
             return response.json();
           })
         );
-        if (data.schema_version !== 2 || data.feature_ids.length !== collection.features.length ||
+        if (data.schema_version !== 3 || data.feature_ids.length !== collection.features.length ||
             data.feature_ids.some((id, i) => id !== collection.features[i].properties.feature_id)) {
           throw new Error("Housing data and geometry schema do not match");
         }
@@ -68,10 +69,13 @@
           type: "scattermapbox", mode: "lines", lon, lat,
           line: { color: "#475569", width: 1 }, hoverinfo: "skip", showlegend: false
         };
+        const positions = Object.fromEntries(data.row_schema.map((name, index) => [name, index]));
+        const bucketAxes = data.axes.filter(axis => axis.row_field);
         const selects = {};
         for (const axis of data.axes) {
           const label = document.createElement("label");
           label.textContent = axis.label;
+          if (axis.key === "year") label.className = "year-control";
           const select = document.createElement("select");
           select.id = `map-${axis.key}`;
           for (const choice of axis.choices) {
@@ -97,10 +101,10 @@
             selects[axis.key].children[index].textContent = displayLabel(choice);
           }));
           const numerators = new Array(data.feature_ids.length).fill(0);
-          const indices = selected.affordability.measure_indices.map(index => 4 + selected.stage.measure_offset + index);
+          const indices = selected.affordability.measures.map(measure => positions[`${selected.stage.stage}_${measure}`]);
           for (const row of data.partitions) {
-            if (selected.housing.buckets.includes(row[1]) && selected.tenure.buckets.includes(row[2]) && selected.program.buckets.includes(row[3])) {
-              numerators[row[0]] += indices.reduce((sum, index) => sum + row[index], 0);
+            if (bucketAxes.every(axis => selected[axis.key].buckets.includes(row[positions[axis.row_field]]))) {
+              numerators[row[positions.feature_index]] += indices.reduce((sum, index) => sum + row[index], 0);
             }
           }
           const features = [], values = [], customdata = [];
