@@ -11,7 +11,7 @@ The data-cleaning guide walks through the Python script with flowcharts, explain
 The static GitHub Pages site in `docs/` provides independent Geography,
 Housing type, Development stage, Tenure, Inclusionary Program, Income Restrictions, and Year selectors.
 It reads committed geometry, a compact sparse numerator cube, and generated
-selector metadata. The browser combines atomic counts and divides by the fixed
+selector metadata. The browser combines unit counts and divides by the fixed
 population to show units per 1,000 residents, with units/population in hover.
 Cities use blue, whole counties orange, and cities plus unincorporated areas purple.
 County outlines, including the state perimeter, stay visible in all views.
