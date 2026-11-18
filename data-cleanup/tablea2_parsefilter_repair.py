@@ -640,14 +640,23 @@ def _load_a2_rows_with_indexes(workbook_path, cache):
     return result
 
 
+# Form code -> published-CSV word for TENURE. Judgment input; measured 2026-11-18
+# from 2,551 matched workbook/CSV rows (matching key: jurisdiction, YEAR, APN,
+# tracking ID, address): O->Owner 2,202, R->Renter 349, no exceptions. The
+# template validator imports this constant (single source) so that the recovered
+# rows and the validator agree with the published CSV's vocabulary.
+FORM_TO_CSV_TENURE = {"R": "Renter", "O": "Owner"}
+
+
 def map_a2_row_to_apr_record(a2_row, identity_row):
+    tenure = a2_row.get("A2_3_Tenure", "")
     mapped = {
         "APN": a2_row.get("A2_1_Current", ""),
         "STREET_ADDRESS": a2_row.get("A2_1_Address", ""),
         "PROJECT_NAME": a2_row.get("A2_1_Name", ""),
         "JURS_TRACKING_ID": a2_row.get("A2_1_ID", ""),
         "UNIT_CAT": a2_row.get("A2_2_Unit", ""),
-        "TENURE": a2_row.get("A2_3_Tenure", ""),
+        "TENURE": FORM_TO_CSV_TENURE.get(tenure, tenure),
         "EXTR_LOW_INCOME_UNITS": a2_row.get("A2_13_xLow", ""),
         "APPROVE_SB35": a2_row.get("A2_14_Stream", ""),
         "INFILL_UNITS": a2_row.get("A2_15_Infill", ""),

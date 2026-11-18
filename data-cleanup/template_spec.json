@@ -1,0 +1,3227 @@
+{
+  "workbooks": [
+    {
+      "workbook": "Bell2019.xlsm",
+      "sha256": "fcc5e7377f6208fc106312d6cea7d39de6888c9cc1042d004beb5d710273b1e5",
+      "extracted_at": "2026-11-18T13:36:53",
+      "header_row": 6,
+      "reporting_year": 2019,
+      "unspecified_type_slots": 1
+    },
+    {
+      "workbook": "Bell2023.xlsm",
+      "sha256": "b04f0aacaad5a4a0e3df93786aa27b360bbab95e648541d0940ecd192f298936",
+      "extracted_at": "2026-11-18T13:36:56",
+      "header_row": 6,
+      "reporting_year": 2023,
+      "unspecified_type_slots": 7
+    },
+    {
+      "workbook": "Campbell2024.xlsm",
+      "sha256": "67a3b7d448fafb8349c1de5d3681a860bb99ed070a6f90face5be0489f2108c3",
+      "extracted_at": "2026-11-18T13:36:58",
+      "header_row": 6,
+      "reporting_year": 2024,
+      "unspecified_type_slots": 6
+    },
+    {
+      "workbook": "Ceres2020.xlsm",
+      "sha256": "e4b11d25192bb37dcce28ded73c5edaca21a4ce733a0add59c9a58c7572f6790",
+      "extracted_at": "2026-11-18T13:37:01",
+      "header_row": 6,
+      "reporting_year": 2020,
+      "unspecified_type_slots": 1
+    },
+    {
+      "workbook": "Colfax2021.xlsm",
+      "sha256": "787051e6aff7cde645a3bf029925f4e3a723af7f9db4609dd538ae964e2ce2b5",
+      "extracted_at": "2026-11-18T13:37:03",
+      "header_row": 6,
+      "reporting_year": 2021,
+      "unspecified_type_slots": 1
+    },
+    {
+      "workbook": "Hesperia2022.xlsm",
+      "sha256": "e515cccb7cf6d827ad9dfbff9f2586aa4d3ef8f9449d69d3e438f54bd17600ac",
+      "extracted_at": "2026-11-18T13:37:06",
+      "header_row": 6,
+      "reporting_year": 2022,
+      "unspecified_type_slots": 4
+    },
+    {
+      "workbook": "Hesperia2023.xlsm",
+      "sha256": "7947e8e285140c870d2e0e04982627d5577ec2dc91e8ea1fa4c90701a4f66197",
+      "extracted_at": "2026-11-18T13:37:08",
+      "header_row": 6,
+      "reporting_year": 2023,
+      "unspecified_type_slots": 18
+    },
+    {
+      "workbook": "Hesperia2024.xlsm",
+      "sha256": "8b7b583244f3b059e4bed31426a33b40d416cad55f6be6011cd8cee3585b88b7",
+      "extracted_at": "2026-11-18T13:37:10",
+      "header_row": 6,
+      "reporting_year": 2024,
+      "unspecified_type_slots": 6
+    },
+    {
+      "workbook": "Irvine2022.xlsm",
+      "sha256": "f1e27e8b885f8eb75f18ef428e86036503b88e91422e99841dcb47b70aba6638",
+      "extracted_at": "2026-11-18T13:37:13",
+      "header_row": 6,
+      "reporting_year": 2022,
+      "unspecified_type_slots": 1
+    }
+  ],
+  "rules": [
+    {
+      "apr_column": "ABOVE_MOD_INCOME",
+      "a2_headers": [
+        "A2_4_Above"
+      ],
+      "type": "whole",
+      "formula1": "-1000",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "ABOVE_MOD_INCOME",
+      "a2_headers": [
+        "A2_4_Above"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "APPROVE_SB35",
+      "a2_headers": [
+        "A2_14_Stream"
+      ],
+      "type": "list",
+      "formula1": "\"Y,N\"",
+      "formula2": null,
+      "operator": null,
+      "interpreted_operator": "in",
+      "multi_select": false,
+      "sources": [
+        "main",
+        "x14"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "APPROVE_SB35",
+      "a2_headers": [
+        "A2_14_Stream"
+      ],
+      "type": "list",
+      "formula1": "[\"NONE\", \"SB 9 (2021) - Duplex in SF Zone\", \"SB 9 (2021) - Residential Lot Split\", \"AB 2011 (2022)\", \"SB 6 (2022)\", \"SB 35 (2017)\"]",
+      "formula2": null,
+      "operator": null,
+      "interpreted_operator": "in",
+      "multi_select": true,
+      "sources": [
+        "x14"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Hesperia2023.xlsm"
+      ],
+      "years": [
+        2023
+      ]
+    },
+    {
+      "apr_column": "APPROVE_SB35",
+      "a2_headers": [
+        "A2_14_Stream"
+      ],
+      "type": "list",
+      "formula1": "[\"NONE\", \"SB 9 (2021) - Duplex in SF Zone\", \"SB 9 (2021) - Residential Lot Split\", \"AB 2011 (2022)\", \"SB 6 (2022)\", \"SB 423 (2023)\"]",
+      "formula2": null,
+      "operator": null,
+      "interpreted_operator": "in",
+      "multi_select": true,
+      "sources": [
+        "x14"
+      ],
+      "templates": [
+        "Campbell2024.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2024
+      ]
+    },
+    {
+      "apr_column": "BP_ABOVE_MOD_INCOME",
+      "a2_headers": [
+        "A2_7_Above"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "BP_ISSUE_DT1",
+      "a2_headers": [
+        "A2_8_Date"
+      ],
+      "type": "date",
+      "formula1": "18264",
+      "formula2": "54789",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "BP_LOW_INCOME_DR",
+      "a2_headers": [
+        "A2_7_LowDeed"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "BP_LOW_INCOME_NDR",
+      "a2_headers": [
+        "A2_7_LowNone"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "BP_MOD_INCOME_DR",
+      "a2_headers": [
+        "A2_7_ModDeed"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "BP_MOD_INCOME_NDR",
+      "a2_headers": [
+        "A2_7_ModNone"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "BP_VLOW_INCOME_DR",
+      "a2_headers": [
+        "A2_7_vLowDeed"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "BP_VLOW_INCOME_NDR",
+      "a2_headers": [
+        "A2_7_vLowNone"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "CO_ABOVE_MOD_INCOME",
+      "a2_headers": [
+        "A2_10_Above"
+      ],
+      "type": "whole",
+      "formula1": "-1000",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "CO_ABOVE_MOD_INCOME",
+      "a2_headers": [
+        "A2_10_Above"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "CO_ISSUE_DT1",
+      "a2_headers": [
+        "A2_10_Date"
+      ],
+      "type": "date",
+      "formula1": "18264",
+      "formula2": "54789",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "CO_LOW_INCOME_DR",
+      "a2_headers": [
+        "A2_10_LowDeed"
+      ],
+      "type": "whole",
+      "formula1": "-1000",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "CO_LOW_INCOME_DR",
+      "a2_headers": [
+        "A2_10_LowDeed"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "CO_LOW_INCOME_NDR",
+      "a2_headers": [
+        "A2_10_LowNone"
+      ],
+      "type": "whole",
+      "formula1": "-1000",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "CO_LOW_INCOME_NDR",
+      "a2_headers": [
+        "A2_10_LowNone"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "CO_MOD_INCOME_DR",
+      "a2_headers": [
+        "A2_10_ModDeed"
+      ],
+      "type": "whole",
+      "formula1": "-1000",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "CO_MOD_INCOME_DR",
+      "a2_headers": [
+        "A2_10_ModDeed"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "CO_MOD_INCOME_NDR",
+      "a2_headers": [
+        "A2_10_ModNone"
+      ],
+      "type": "whole",
+      "formula1": "-1000",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "CO_MOD_INCOME_NDR",
+      "a2_headers": [
+        "A2_10_ModNone"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "CO_VLOW_INCOME_DR",
+      "a2_headers": [
+        "A2_10_vLowDeed"
+      ],
+      "type": "whole",
+      "formula1": "-1000",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "CO_VLOW_INCOME_DR",
+      "a2_headers": [
+        "A2_10_vLowDeed"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "CO_VLOW_INCOME_NDR",
+      "a2_headers": [
+        "A2_10_vLowNone"
+      ],
+      "type": "whole",
+      "formula1": "-1000",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "CO_VLOW_INCOME_NDR",
+      "a2_headers": [
+        "A2_10_vLowNone"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "DEM_DES_UNITS",
+      "a2_headers": [
+        "A2_20_Units"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "DEM_DES_UNITS_OWN_RENT",
+      "a2_headers": [
+        "A2_20_Demo"
+      ],
+      "type": "list",
+      "formula1": "\"R,O\"",
+      "formula2": null,
+      "operator": null,
+      "interpreted_operator": "in",
+      "multi_select": false,
+      "sources": [
+        "main",
+        "x14"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "DEM_OR_DES_UNITS",
+      "a2_headers": [
+        "A2_20_Dest"
+      ],
+      "type": "list",
+      "formula1": "\"Demolished,Destroyed\"",
+      "formula2": null,
+      "operator": null,
+      "interpreted_operator": "in",
+      "multi_select": false,
+      "sources": [
+        "main",
+        "x14"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "DENSITY_BONUS_INCENTIVES",
+      "a2_headers": [
+        "A2_24_DB"
+      ],
+      "type": "list",
+      "formula1": "[\"On-Site Improvements\", \"Off-site Improvements\", \"Development Standards Modification\", \"Other\"]",
+      "formula2": null,
+      "operator": null,
+      "interpreted_operator": "in",
+      "multi_select": true,
+      "sources": [
+        "x14"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "DENSITY_BONUS_NUMBER_OTHER_INCENTIVES",
+      "a2_headers": [
+        "A2_23_DB"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "20",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "DENSITY_BONUS_RECEIVE_REDUCTION",
+      "a2_headers": [
+        "A2_25_DB"
+      ],
+      "type": "list",
+      "formula1": "[\"Yes\", \"No\"]",
+      "formula2": null,
+      "operator": null,
+      "interpreted_operator": "in",
+      "multi_select": false,
+      "sources": [
+        "x14"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "DENSITY_BONUS_TOTAL",
+      "a2_headers": [
+        "A2_22_DB"
+      ],
+      "type": "decimal",
+      "formula1": "0",
+      "formula2": "100",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "DR_TYPE",
+      "a2_headers": [
+        "A2_17_Deed"
+      ],
+      "type": "list",
+      "formula1": "[\"DB\", \"INC\", \"Other\"]",
+      "formula2": null,
+      "operator": null,
+      "interpreted_operator": "in",
+      "multi_select": false,
+      "sources": [
+        "x14"
+      ],
+      "templates": [
+        "Bell2019.xlsm"
+      ],
+      "years": [
+        2019
+      ]
+    },
+    {
+      "apr_column": "DR_TYPE",
+      "a2_headers": [
+        "A2_17_Deed"
+      ],
+      "type": "list",
+      "formula1": "[\"DB\", \"INC\", \"Other\"]",
+      "formula2": null,
+      "operator": null,
+      "interpreted_operator": "in",
+      "multi_select": true,
+      "sources": [
+        "x14"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "ENT_APPROVE_DT1",
+      "a2_headers": [
+        "A2_5_Date"
+      ],
+      "type": "date",
+      "formula1": "18264",
+      "formula2": "54789",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "EXTR_LOW_INCOME_UNITS",
+      "a2_headers": [
+        "A2_13_xLow"
+      ],
+      "type": "custom",
+      "formula1": "AND(ISNUMBER(AI13),OR(AI13<=SUM(Z13:AA13),AI13<=SUM(Q13:R13),AI13<=SUM(H13:I13)))",
+      "formula2": null,
+      "operator": null,
+      "interpreted_operator": "custom",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ],
+      "custom": {
+        "numeric": true,
+        "reference_apr_columns": [
+          [
+            "CO_VLOW_INCOME_DR",
+            "CO_VLOW_INCOME_NDR"
+          ],
+          [
+            "BP_VLOW_INCOME_DR",
+            "BP_VLOW_INCOME_NDR"
+          ],
+          [
+            "VLOW_INCOME_DR",
+            "VLOW_INCOME_NDR"
+          ]
+        ]
+      }
+    },
+    {
+      "apr_column": "EXTR_LOW_INCOME_UNITS",
+      "a2_headers": [
+        "A2_13_xLow"
+      ],
+      "type": "whole",
+      "formula1": "-1000",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "FIN_ASSIST_NAME",
+      "a2_headers": [
+        "A2_16_Assist"
+      ],
+      "type": "list",
+      "formula1": "[\"Acq/Rehab\", \"AHP\", \"AHSC\", \"CalHOME\", \"CDBG\", \"CDLAC\", \"CESH\", \"ESG\", \"GSAF\", \"HOME\", \"HOPWA\", \"IIG\", \"LHTF\", \"LIHTC\", \"MHP\", \"MHSA\", \"MPRROP\", \"MRB\", \"MyHOME\", \"NHTF\", \"NPLH\", \"PBS8\", \"PDLP\", \"RAD\", \"RDA\", \"Sec 202\", \"Sec 811\", \"SERNA\", \"SHMHP\", \"SNHP\", \"TOD\", \"USDA\", \"VHHP\", \"Other\"]",
+      "formula2": null,
+      "operator": null,
+      "interpreted_operator": "in",
+      "multi_select": false,
+      "sources": [
+        "x14"
+      ],
+      "templates": [
+        "Bell2019.xlsm"
+      ],
+      "years": [
+        2019
+      ]
+    },
+    {
+      "apr_column": "FIN_ASSIST_NAME",
+      "a2_headers": [
+        "A2_16_Assist"
+      ],
+      "type": "list",
+      "formula1": "[\"Acq/Rehab\", \"AHP\", \"AHSC\", \"CalHOME\", \"CDBG\", \"CDLAC\", \"CESH\", \"ESG\", \"GSAF\", \"HEAP\", \"HHAP\", \"HKEY\", \"HOME\", \"HOPWA\", \"IIG\", \"LHTF\", \"LIHTC\", \"MHP\", \"MHSA\", \"MPRROP\", \"MRB\", \"MyHOME\", \"NHTF\", \"NPLH\", \"PBS8\", \"PDLP\", \"RAD\", \"RDA\", \"Sec 202\", \"Sec 811\", \"SERNA\", \"SHMHP\", \"SNHP\", \"TOD\", \"USDA\", \"VHHP\", \"Other\"]",
+      "formula2": null,
+      "operator": null,
+      "interpreted_operator": "in",
+      "multi_select": true,
+      "sources": [
+        "x14"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "INFILL_UNITS",
+      "a2_headers": [
+        "A2_15_Infill"
+      ],
+      "type": "list",
+      "formula1": "\"Y,N\"",
+      "formula2": null,
+      "operator": null,
+      "interpreted_operator": "in",
+      "multi_select": false,
+      "sources": [
+        "main",
+        "x14"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "LOW_INCOME_DR",
+      "a2_headers": [
+        "A2_4_LowDeed"
+      ],
+      "type": "whole",
+      "formula1": "-1000",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "LOW_INCOME_DR",
+      "a2_headers": [
+        "A2_4_LowDeed"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "LOW_INCOME_NDR",
+      "a2_headers": [
+        "A2_4_LowNone"
+      ],
+      "type": "whole",
+      "formula1": "-1000",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "LOW_INCOME_NDR",
+      "a2_headers": [
+        "A2_4_LowNone"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "MOD_INCOME_DR",
+      "a2_headers": [
+        "A2_4_ModDeed"
+      ],
+      "type": "whole",
+      "formula1": "-1000",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "MOD_INCOME_DR",
+      "a2_headers": [
+        "A2_4_ModDeed"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "MOD_INCOME_NDR",
+      "a2_headers": [
+        "A2_4_ModNone"
+      ],
+      "type": "whole",
+      "formula1": "-1000",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "MOD_INCOME_NDR",
+      "a2_headers": [
+        "A2_4_ModNone"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "TENURE",
+      "a2_headers": [
+        "A2_3_Tenure"
+      ],
+      "type": "list",
+      "formula1": "\"R,O\"",
+      "formula2": null,
+      "operator": null,
+      "interpreted_operator": "in",
+      "multi_select": false,
+      "sources": [
+        "main",
+        "x14"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "TERM_AFF_DR",
+      "a2_headers": [
+        "A2_19_Terms"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "1000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "UNIT_CAT",
+      "a2_headers": [
+        "A2_2_Unit"
+      ],
+      "type": "list",
+      "formula1": "\"SFA,SFD,2 to 4,5+,ADU,MH\"",
+      "formula2": null,
+      "operator": null,
+      "interpreted_operator": "in",
+      "multi_select": false,
+      "sources": [
+        "main",
+        "x14"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022,
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "VLOW_INCOME_DR",
+      "a2_headers": [
+        "A2_4_vLowDeed"
+      ],
+      "type": "whole",
+      "formula1": "-1000",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "VLOW_INCOME_DR",
+      "a2_headers": [
+        "A2_4_vLowDeed"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    },
+    {
+      "apr_column": "VLOW_INCOME_NDR",
+      "a2_headers": [
+        "A2_4_vLowNone"
+      ],
+      "type": "whole",
+      "formula1": "-1000",
+      "formula2": null,
+      "operator": "greaterThanOrEqual",
+      "interpreted_operator": ">=",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2019.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ],
+      "years": [
+        2019,
+        2020,
+        2021,
+        2022
+      ]
+    },
+    {
+      "apr_column": "VLOW_INCOME_NDR",
+      "a2_headers": [
+        "A2_4_vLowNone"
+      ],
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "operator": null,
+      "interpreted_operator": "between",
+      "multi_select": false,
+      "sources": [
+        "main"
+      ],
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ],
+      "years": [
+        2023,
+        2024
+      ]
+    }
+  ],
+  "unenforced": [
+    {
+      "a2_header": "A2_2_Unit",
+      "column": "F",
+      "type": "list",
+      "formula1": "\"SFA,SFD,2 to 4,5+,ADU,MH\"",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_8_Date",
+      "column": "X",
+      "type": "date",
+      "formula1": "18264",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_5_Date",
+      "column": "O",
+      "type": "date",
+      "formula1": "18264",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_ModDeed",
+      "column": "U",
+      "type": "date",
+      "formula1": "18264",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_5_Date",
+      "column": "O",
+      "type": "date",
+      "formula1": "18264",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_4_vLowDeed",
+      "column": "H",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_4_vLowNone",
+      "column": "I",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_vLowDeed",
+      "column": "Z",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_vLowNone",
+      "column": "AA",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_LowDeed",
+      "column": "AB",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_LowNone",
+      "column": "AC",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_ModDeed",
+      "column": "AD",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_ModNone",
+      "column": "AE",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_Above",
+      "column": "AF",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_vLowDeed",
+      "column": "Q",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_vLowNone",
+      "column": "R",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_LowDeed",
+      "column": "S",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_LowNone",
+      "column": "T",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_ModNone",
+      "column": "V",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_Above",
+      "column": "W",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_vLowDeed",
+      "column": "Q",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_vLowNone",
+      "column": "R",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_LowDeed",
+      "column": "S",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_LowNone",
+      "column": "T",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_ModDeed",
+      "column": "U",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_ModNone",
+      "column": "V",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_Above",
+      "column": "W",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_ModDeed",
+      "column": "U",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_4_LowDeed",
+      "column": "J",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_4_LowNone",
+      "column": "K",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_4_ModDeed",
+      "column": "L",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_4_ModNone",
+      "column": "M",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_4_Above",
+      "column": "N",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_5_Date",
+      "column": "O",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_6_Units",
+      "column": "P",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_8_Date",
+      "column": "X",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_9_Units",
+      "column": "Y",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_Date",
+      "column": "AG",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_Units",
+      "column": "AH",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_13_xLow",
+      "column": "AI",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_Date",
+      "column": "AG",
+      "type": "date",
+      "formula1": "18264",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_19_Terms",
+      "column": "AO",
+      "type": "whole",
+      "formula1": "0",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_20_Dest",
+      "column": "AQ",
+      "type": "whole",
+      "formula1": "0",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_20_Demo",
+      "column": "AR",
+      "type": "whole",
+      "formula1": "0",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_LowDeed",
+      "column": "S",
+      "type": "list",
+      "formula1": "\"No,Yes-But no action taken,Yes-Approved,Yes-Denied\"",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_3_Tenure",
+      "column": "G",
+      "type": "list",
+      "formula1": "\"R,O\"",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2019.xlsm",
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_2_Unit",
+      "column": "F",
+      "type": "list",
+      "formula1": "\"SFA,SFD,2 to 4,5+,ADU,MH\"",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_13_xLow",
+      "column": "AI",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_4_vLowDeed",
+      "column": "H",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_4_vLowNone",
+      "column": "I",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_4_LowDeed",
+      "column": "J",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_4_LowNone",
+      "column": "K",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_4_ModDeed",
+      "column": "L",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_4_ModNone",
+      "column": "M",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_4_Above",
+      "column": "N",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_vLowDeed",
+      "column": "Z",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_vLowNone",
+      "column": "AA",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_LowDeed",
+      "column": "AB",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_LowNone",
+      "column": "AC",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_ModDeed",
+      "column": "AD",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_ModNone",
+      "column": "AE",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_Above",
+      "column": "AF",
+      "type": "whole",
+      "formula1": "-1000",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_Date",
+      "column": "AG",
+      "type": "date",
+      "formula1": "18264",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_19_Terms",
+      "column": "AO",
+      "type": "whole",
+      "formula1": "0",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_20_Units",
+      "column": "AP",
+      "type": "whole",
+      "formula1": "0",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_20_Units",
+      "column": "AP",
+      "type": "whole",
+      "formula1": "0",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_22_DB",
+      "column": "AS",
+      "type": "whole",
+      "formula1": "0",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_23_DB",
+      "column": "AT",
+      "type": "whole",
+      "formula1": "0",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_24_DB",
+      "column": "AU",
+      "type": "whole",
+      "formula1": "0",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_25_DB",
+      "column": "AV",
+      "type": "whole",
+      "formula1": "0",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_21_Notes",
+      "column": "AW",
+      "type": "whole",
+      "formula1": "0",
+      "source": "main",
+      "reason": "template strip (above data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_20_Dest",
+      "column": "AQ",
+      "type": "list",
+      "formula1": "\"Demolished,Destroyed\"",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_3_Tenure",
+      "column": "G",
+      "type": "list",
+      "formula1": "\"R,O\"",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_14_Stream",
+      "column": "AJ",
+      "type": "list",
+      "formula1": "\"Y,N\"",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Ceres2020.xlsm",
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_15_Infill",
+      "column": "AK",
+      "type": "list",
+      "formula1": "\"Y,N\"",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_20_Demo",
+      "column": "AR",
+      "type": "list",
+      "formula1": "\"R,O\"",
+      "source": "main",
+      "reason": "overflow rows (below data area)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2022.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_23_DB",
+      "column": "AT",
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "100",
+      "source": "main",
+      "reason": "shadowed by an earlier rule on the same cells (Excel applies the first)",
+      "templates": [
+        "Bell2023.xlsm",
+        "Campbell2024.xlsm",
+        "Hesperia2023.xlsm",
+        "Hesperia2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_7_ModNone",
+      "column": "V",
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "source": "main",
+      "reason": "shadowed by an earlier rule on the same cells (Excel applies the first)",
+      "templates": [
+        "Campbell2024.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_ModNone",
+      "column": "AE",
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "source": "main",
+      "reason": "shadowed by an earlier rule on the same cells (Excel applies the first)",
+      "templates": [
+        "Colfax2021.xlsm"
+      ]
+    },
+    {
+      "a2_header": "A2_10_Above",
+      "column": "AF",
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "30000",
+      "source": "main",
+      "reason": "shadowed by an earlier rule on the same cells (Excel applies the first)",
+      "templates": [
+        "Colfax2021.xlsm"
+      ]
+    },
+    {
+      "a2_header": null,
+      "column": "AS",
+      "type": "decimal",
+      "formula1": "0",
+      "formula2": "100",
+      "source": "main",
+      "reason": "column has no header in this template",
+      "templates": [
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": null,
+      "column": "AT",
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "20",
+      "source": "main",
+      "reason": "column has no header in this template",
+      "templates": [
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": null,
+      "column": "AT",
+      "type": "whole",
+      "formula1": "0",
+      "formula2": "100",
+      "source": "main",
+      "reason": "column has no header in this template",
+      "templates": [
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm",
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": null,
+      "column": "AU",
+      "type": "list",
+      "formula1": "'Deed Rest And Asst Pgm Data'!$C$2:$C$5",
+      "formula2": null,
+      "source": "x14",
+      "sqref": "AU13:AU1000",
+      "reason": "column has no header in this template",
+      "templates": [
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": null,
+      "column": "AV",
+      "type": "list",
+      "formula1": "'Deed Rest And Asst Pgm Data'!$D$2:$D$3",
+      "formula2": null,
+      "source": "x14",
+      "sqref": "AV13:AV1000",
+      "reason": "column has no header in this template",
+      "templates": [
+        "Colfax2021.xlsm",
+        "Hesperia2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": null,
+      "column": "AU",
+      "type": "list",
+      "formula1": "'Deed Rest And Asst Pgm Data'!$C$2:$C$5",
+      "formula2": null,
+      "source": "x14",
+      "sqref": "AU13:AU2496",
+      "reason": "column has no header in this template",
+      "templates": [
+        "Irvine2022.xlsm"
+      ]
+    },
+    {
+      "a2_header": null,
+      "column": "AV",
+      "type": "list",
+      "formula1": "'Deed Rest And Asst Pgm Data'!$D$2:$D$3",
+      "formula2": null,
+      "source": "x14",
+      "sqref": "AV13:AV2496",
+      "reason": "column has no header in this template",
+      "templates": [
+        "Irvine2022.xlsm"
+      ]
+    }
+  ],
+  "assumptions": {
+    "single_formula_numeric_date": "interpreted as >= bound",
+    "blank_cells": "'', 'nan', 'none' (any case) are never violations",
+    "governing_form": "a CSV row is judged only by rules of the form(s) whose reporting year (Start Here!B5) equals the row's YEAR; a row whose YEAR has no form is not checked; a (column, year) on which same-year forms disagree is reported and judges no row",
+    "csv_vocabulary": "vocabulary='csv' translates TENURE list items R->Renter, O->Owner, treats INFILL_UNITS '0' as blank (measured 2026-11-18 from 2,551 matched workbook/CSV rows); vocabulary='form' applies the form's own codes",
+    "demolition_columns_zero": "HCD's published CSV shows '0' in DEM_OR_DES_UNITS and DEM_DES_UNITS_OWN_RENT in every complete matched row where the form had an entry (measured 2026-11-18: 43/43, 31/31), while rows the repair script rebuilds from the workbooks carry the form's own values ('Demolished'/'Destroyed'; 'O'/'R'). Author's ruling 2026-11-18: that state is accepted and modelled; vocabulary='csv' allows the form rule's items plus '0' on those two columns, anything else is a violation",
+    "date_mapping": "A2_5_Date/A2_8_Date/A2_10_Date -> ENT_APPROVE_DT1/BP_ISSUE_DT1/CO_ISSUE_DT1 in the validator only; workbook datetimes render as YYYY-MM-DD",
+    "date_formats": "whitelist %Y-%m-%d, %m/%d/%Y, %Y/%m/%d, %m/%d/%y; pure-integer values treated as Excel serials",
+    "data_area": "rows data_start..data_end; data_start follows the 'Start Data Entry Below' sentinel, data_end is the start row of the template's overflow block (the most common start row of ranges running to the sheet's last row) minus one; rules on header-less columns are listed as unenforced",
+    "first_rule_wins": "Excel applies the first rule in file order where rules overlap; a later rule is shadowed (unenforced) only when earlier rules cover all its data-area rows; a partial overlap is kept with partial_overlap=true; CSV rows are not row-scoped, so both rules count as two distinct rules for one column and year, are listed by form_disagreements and judge no CSV row (no shipped template has one)",
+    "multi_select": "list rules on columns whose Worksheet_Change macro joins picks check each item; items split on ',' or ';' (macro writes ', '; the published CSV uses ';' in some columns, e.g. DR_TYPE, APPROVE_SB35)",
+    "unenforced_listing": "template strips, overflow rows, shadowed rules, header-less columns, unmapped columns, unsupported operators, drifted custom formulas and unresolved references are listed in 'unenforced', not dropped; rule types other than list, whole, decimal, date and custom (e.g. textLength, time) would be counted as enforced but are not evaluated; no shipped template has one",
+    "custom_xlow": "the known 2023+ A2_13_xLow formula is enforced: blank passes, non-numeric fails, otherwise a violation iff the value exceeds ALL THREE pair sums; blank/text comparator cells count as 0 (Excel SUM semantics); any other custom formula is drift and stays unenforced"
+  },
+  "generated_at": "2026-11-18T13:37:13"
+}
