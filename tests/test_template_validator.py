@@ -555,7 +555,7 @@ REPAIR.__spec__.loader.exec_module(REPAIR)
 
 class VocabularyTests(unittest.TestCase):
     """Revision 5 item 1: form vocabulary vs published-CSV vocabulary.
-    Measured 2026-11-18 from 2,551 matched workbook/CSV rows."""
+    Re-measured 2026-11-19 from 2,733 matched workbook/CSV rows (see template_validator.py)."""
     TENURE = canonical(("TENURE", "list", '"R,O"', None, None, "in"))
     INFILL = canonical(("INFILL_UNITS", "list", '"Y,N"', None, None, "in"))
 
@@ -642,8 +642,8 @@ class ExportZeroColumnTests(unittest.TestCase):
 
 
 class DateMappingTests(unittest.TestCase):
-    """Revision 5 item 3: the form's date columns map to the CSV's date
-    columns in the validator only; workbook datetimes render as YYYY-MM-DD."""
+    """The form's date columns map to the CSV's date columns (one mapping, in the
+    repair script); workbook datetimes render as YYYY-MM-DD."""
     DATES = {"A2_5_Date": "ENT_APPROVE_DT1", "A2_8_Date": "BP_ISSUE_DT1",
              "A2_10_Date": "CO_ISSUE_DT1"}
 
@@ -656,10 +656,13 @@ class DateMappingTests(unittest.TestCase):
     def test_unrequested_date_header_is_not_invented(self):
         self.assertNotIn("A2_5_Date", a2_header_to_apr_columns({"A2_3_Tenure"}))
 
-    def test_repair_script_deliberately_does_not_copy_dates(self):
+    def test_repair_script_copies_the_same_dates(self):
+        self.assertEqual(dict(REPAIR.XLSM_TO_APR_DATE), self.DATES)
+        self.assertEqual(template_validator.A2_DATE_TO_APR_COLUMNS, self.DATES)
         mapped = REPAIR.map_a2_row_to_apr_record(
-            {h: "x" for h in self.DATES}, {})
-        self.assertEqual({col for col, v in mapped.items() if v == "x"}, set())
+            {"A2_5_Date": "2023-06-15 00:00:00", "A2_8_Date": "x"}, {})
+        self.assertEqual(mapped["ENT_APPROVE_DT1"], "2023-06-15")
+        self.assertNotIn("BP_ISSUE_DT1", mapped)
 
     def test_workbook_datetimes_render_as_iso_dates(self):
         import datetime
@@ -926,7 +929,7 @@ class WorkbookSmokeTests(unittest.TestCase):
         self.assertEqual(drifted[0]["reason"], "template formula changed")
 
     def test_reporting_years_of_the_nine_workbooks(self):
-        # Start Here!B5 measured 2026-11-18 (mapping report section 2).
+        # Start Here!B5 read from each workbook, 2026-11-18.
         expected = {"Bell2019.xlsm": 2019, "Bell2023.xlsm": 2023,
                     "Campbell2024.xlsm": 2024, "Ceres2020.xlsm": 2020,
                     "Colfax2021.xlsm": 2021, "Hesperia2022.xlsm": 2022,

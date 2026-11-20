@@ -125,6 +125,26 @@ for value in ['123.0', '048E732004800']:
         self.assertIn("048E732004800 literal/payload control passed", result.stdout)
         self.assertIn("123.0 literal/payload control passed", result.stdout)
 
+    def test_missing_information_tokens_yield_only_the_address_alias(self):
+        for field in ["APN", "JURS_TRACKING_ID"]:
+            for token in ["N/A", "n/a", "NA", "None", "null", "NULL"]:
+                with self.subTest(field=field, token=token):
+                    tokens = cleaner._append_identity_tokens(identity(**{field: token}))[1]
+                    self.assertEqual({t for t in tokens if t[0] == field}, set())
+                    self.assertIn(("STREET_ADDRESS", "1MAINST"), tokens)
+
+    def test_append_keeps_int64_columns(self):
+        df = pd.DataFrame({"YEAR": pd.array([2020], dtype="Int64"), "NO_ENTITLEMENTS": pd.array([4], dtype="Int64"),
+                           "APN": ["a"], "NOTES": ["x"]})
+        out = cleaner._append_rows_with_dtype_defaults(df, [{"YEAR": "2023", "APN": "b"}])
+        self.assertEqual(str(out["YEAR"].dtype), "Int64")
+        self.assertEqual(list(out["YEAR"]), [2020, 2023])
+        self.assertEqual(str(out["NO_ENTITLEMENTS"].dtype), "Int64")  # unmapped: stays Int64, new cell NA
+        self.assertTrue(pd.isna(out["NO_ENTITLEMENTS"].iloc[1]))
+        self.assertEqual(list(out["NOTES"]), ["x", ""])
+        out = cleaner._append_rows_with_dtype_defaults(df, [{"YEAR": "n/a?", "APN": "b"}])
+        self.assertEqual(str(out["YEAR"].dtype), "object")
+
     def test_literal_identifiers_and_long_coefficients_remain_distinct(self):
         for field in ["APN", "JURS_TRACKING_ID"]:
             for value, other in [("1E3", "1000"), ("048E732004800", "480E732004799"),
@@ -226,7 +246,6 @@ for value in ['123.0', '048E732004800']:
             stack.enter_context(patch.object(cleaner, "_extract_truncated_closer_rows", return_value=frame(proposals)))
             stack.enter_context(patch.object(cleaner, "_build_identity_source_map", return_value={}))
             stack.enter_context(patch.object(cleaner, "_strip_affordability_trailing_quotes", return_value=0))
-            stack.enter_context(patch.object(cleaner, "_repair_column_shift_rows", return_value=0))
             stack.enter_context(patch.object(cleaner, "_resolve_workbook_path", return_value=Path("Town2024.xlsm")))
             stack.enter_context(patch.object(cleaner, "_load_a2_rows_with_indexes", return_value={}))
             def find(indexes, row):
@@ -250,6 +269,8 @@ for value in ['123.0', '048E732004800']:
         self.assertEqual(counters["truncated_identities_resolved_append"], 1)
         self.assertEqual(counters["truncated_identities_ambiguous"], 1)
         self.assertEqual(counters["append_candidates_withheld"], 1)
+        self.assertEqual(counters["int64_columns_loaded"], 1)
+        self.assertEqual(counters["int64_columns_degraded"], 0)
 
 
 if __name__ == "__main__":

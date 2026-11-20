@@ -96,6 +96,10 @@ Outputs, all written to the repo root:
 - `matched_truncated_repair.csv`, `unmatched_truncated_repair.csv`, `ambiguous_truncated_repair.csv` — truncated-row recovery diagnostics.
 - `date_year_mismatch_rows_parsefilter_repair.csv` — rows dropped for date/year validation.
 - `date_excluded_phase_comparison_parsefilter_repair.csv` — phase comparisons with retained rows; this diagnostic does not restore excluded rows.
+- `overwide_rows_parsefilter_repair.csv` — records wider than the header whose extra fields were not all `NULL`; they are not loaded.
+- `workbook_rows_missing_from_public_csv.csv` — written by `data-cleanup/workbook_rows_missing.py`: workbook Table A2 rows (an identity part, positive A2_6/A2_9/A2_10 units, passing the date rule for the file-name year) that no public `tablea2.csv` record of the same jurisdiction and year accounts for (same tracking ID, housing type, tenure and address; with no ID, APN and address; matched as a multiset). Every workbook column plus `_workbook` and `_excel_row`.
+- `reconstructed_rows_parsefilter_repair.csv` — every row whose columns were rebuilt or lost by the repair, with the columns affected.
+- `dedup_collapsed_pairs_parsefilter_repair.csv` — every removed duplicate that differs from its kept partner. `kind` is `key_duplicate` (collapsed on the dedup key, differs in other columns; the first copy is kept) or `blank_id_copy` (a row with a blank or N/A-like tracking id removed because an identified row equals it in every other column; the only difference listed is the tracking id).
 
 The module docstring documents the full pipeline order, the stable identity key, XLSM lookup order, and the upsert/ambiguity rules. [The cleaning explanation and flowcharts](docs/cleaning.html) describe the same flow.
 

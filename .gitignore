@@ -23,3 +23,6 @@
 .mplconfig/
 .DS_Store
 Chase_*.pdf
+
+# Local planning notes (the spec/proposal workflow files)
+openspec/

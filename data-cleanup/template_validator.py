@@ -69,13 +69,15 @@ Provenance and assumptions (also recorded in every generated spec JSON):
   where the form had an entry, while rows the repair script rebuilds carry the
   form's own values "Demolished"/"Destroyed" and "O"/"R"). Anything else in
   those columns is a violation. The measurements behind each are cited at the
-  constants below (measured 2026-11-18 from 2,551 matched workbook/CSV rows).
+  constants below (re-measured 2026-11-19: see the measurement note above FORM_TO_CSV_TENURE below).
 - Dates: A2_5_Date, A2_8_Date, A2_10_Date map to ENT_APPROVE_DT1,
-  BP_ISSUE_DT1, CO_ISSUE_DT1 in this validator only (the repair script does
-  not copy dates, deliberately). workbook_dataframe renders workbook datetime
-  cells as YYYY-MM-DD, the form the CSV carries (measured 100% equal on
-  167/1,533/1,356 matched cells). The form's date rule is 1950-01-01..
-  2050-01-01 (serials 18264..54789); it is not a check against the row's YEAR.
+  BP_ISSUE_DT1, CO_ISSUE_DT1 (the repair script's `XLSM_TO_APR_DATE`, imported
+  here; the script copies the same dates into recovered rows).
+  workbook_dataframe renders workbook datetime cells as YYYY-MM-DD, the form
+  the CSV carries (re-measured 2026-11-19: equal on 194/1,732/1,441 of
+  196/1,732/1,441 matched cells; the other 2 are blank in the CSV, none
+  differ). The form's date rule is 1950-01-01..2050-01-01 (serials
+  18264..54789); it is not a check against the row's YEAR.
 - Date parsing uses an explicit format whitelist (%Y-%m-%d, %m/%d/%Y,
   %Y/%m/%d, %m/%d/%y); datetime text such as "2023-06-15 00:00:00" is
   rejected; pure-integer date-cell values are treated as Excel serials;
@@ -138,32 +140,35 @@ def _repair_module():
     return repair
 
 
-# Judgment inputs for the "csv" vocabulary. Each was measured 2026-11-18 from
-# 2,551 matched workbook/CSV rows (matching key: jurisdiction, YEAR, APN,
-# tracking ID, address; mapping report in the Revision 5 notes under
-# openspec/). Ruled by the measurement, not by the form: change them only with
-# a new measurement.
-# TENURE: O->Owner 2,202, R->Renter 349, no exceptions. Defined in the repair
+# Judgment inputs for the "csv" vocabulary. Each was re-measured 2026-11-19 from
+# 2,733 matched workbook/CSV rows: the nine workbooks' Table A2 rows (read as text,
+# no default NA parsing) against the raw tablea2.csv (plain text, no repair), key =
+# jurisdiction and reporting year (both from the workbook file name), APN,
+# tracking ID, address, unique on both sides, blank key parts allowed (with every
+# part present: 2,716 rows). The key treats literal "N/A" text as a key part; 72
+# workbook APNs and 2 tracking IDs are literally N/A, and reading them as blank
+# (pandas' default NA parsing) loses 69 Hesperia matches. Ruled by the
+# measurement, not by the form: change them only with a new measurement.
+# TENURE: O->Owner 2,343, R->Renter 390, no exceptions. Defined in the repair
 # script so recovered rows and this validator share one definition.
 FORM_TO_CSV_TENURE = _repair_module().FORM_TO_CSV_TENURE
 CSV_VALUE_TRANSLATIONS = {"TENURE": FORM_TO_CSV_TENURE}
-# INFILL_UNITS: a blank form cell is published as the string "0" (17 of 23
-# blank form cells; 0 of 2,505 non-blank Y/N cells became "0").
+# INFILL_UNITS: a blank form cell is published as the string "0" (17 of 17
+# blank form cells; 0 of 2,716 non-blank Y/N cells became "0").
 CSV_ZERO_IS_BLANK_COLUMNS = ("INFILL_UNITS",)
 # DEM_OR_DES_UNITS / DEM_DES_UNITS_OWN_RENT: the form's "Demolished", "O", "R"
-# are published as "0" (measured 2026-11-18: 43/43 and 31/31 clean matched rows
+# are published as "0" (re-measured 2026-11-19: 47/47 and 35/35 matched rows
 # where the form had an entry). Ruled 2026-11-18 by the author: the data's
 # actual state is accepted and modelled, so under "csv" the allowed set is the
 # form rule's own items (what the repair script rebuilds from the workbooks)
 # plus "0" (HCD's export). Added to the allowed items of list rules only.
 CSV_EXPORT_EXTRA_ITEMS = {"DEM_OR_DES_UNITS": ("0",),
                           "DEM_DES_UNITS_OWN_RENT": ("0",)}
-# Form date columns -> CSV date columns: equal on 167/167, 1,533/1,533 and
-# 1,356/1,356 matched cells (no other CSV column agrees above 0.033).
-# Validator only: the repair script deliberately does not copy dates.
-A2_DATE_TO_APR_COLUMNS = {"A2_5_Date": "ENT_APPROVE_DT1",
-                          "A2_8_Date": "BP_ISSUE_DT1",
-                          "A2_10_Date": "CO_ISSUE_DT1"}
+# Form date columns -> CSV date columns: equal on 194/196, 1,732/1,732 and
+# 1,441/1,441 matched cells (the 2 others are blank in the CSV; no other CSV
+# column agrees on any cell). Single source: the repair script, which also
+# copies these dates into recovered rows.
+A2_DATE_TO_APR_COLUMNS = dict(_repair_module().XLSM_TO_APR_DATE)
 ASSUMPTIONS = {
     "single_formula_numeric_date": "interpreted as >= bound",
     "blank_cells": "'', 'nan', 'none' (any case) are never violations",
@@ -174,13 +179,13 @@ ASSUMPTIONS = {
                        "reported and judges no row"),
     "csv_vocabulary": ("vocabulary='csv' translates TENURE list items "
                        "R->Renter, O->Owner, treats INFILL_UNITS '0' as blank "
-                       "(measured 2026-11-18 from 2,551 matched workbook/CSV "
+                       "(re-measured 2026-11-19 from 2,733 matched workbook/CSV "
                        "rows); vocabulary='form' applies the form's own codes"),
     "demolition_columns_zero": ("HCD's published CSV shows '0' in "
                                 "DEM_OR_DES_UNITS and DEM_DES_UNITS_OWN_RENT "
-                                "in every complete matched row where the form "
-                                "had an entry (measured 2026-11-18: 43/43, "
-                                "31/31), while rows the repair script rebuilds "
+                                "in every matched row where the form "
+                                "had an entry (re-measured 2026-11-19: 47/47, "
+                                "35/35), while rows the repair script rebuilds "
                                 "from the workbooks carry the form's own values "
                                 "('Demolished'/'Destroyed'; 'O'/'R'). Author's "
                                 "ruling 2026-11-18: that state is accepted and "
@@ -188,7 +193,8 @@ ASSUMPTIONS = {
                                 "rule's items plus '0' on those two columns, "
                                 "anything else is a violation"),
     "date_mapping": ("A2_5_Date/A2_8_Date/A2_10_Date -> ENT_APPROVE_DT1/"
-                     "BP_ISSUE_DT1/CO_ISSUE_DT1 in the validator only; "
+                     "BP_ISSUE_DT1/CO_ISSUE_DT1 (the repair script's "
+                     "XLSM_TO_APR_DATE, shared with this validator); "
                      "workbook datetimes render as YYYY-MM-DD"),
     "date_formats": ("whitelist " + ", ".join(DATE_FORMATS) +
                      "; pure-integer values treated as Excel serials"),
